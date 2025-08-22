@@ -3,6 +3,13 @@ import { getRides } from '@/lib/data';
 import { Bus, Search } from 'lucide-react';
 import { SearchForm } from '@/components/SearchForm';
 import { Suspense } from 'react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 export default async function Home({
   searchParams,
