@@ -1,5 +1,5 @@
 import type { Ride, Booking, User, Seat } from './types';
-import { format } from 'date-fns';
+import { format, isAfter, isEqual, startOfDay } from 'date-fns';
 
 const generateSeats = (totalSeats: number, bookedSeats: number[]): Seat[] => {
   return Array.from({ length: totalSeats }, (_, i) => {
@@ -67,12 +67,43 @@ let bookings: Booking[] = [];
 let users: User[] = [];
 
 // Simulate API calls
-export const getRides = async (): Promise<Ride[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(rides);
-    }, 500);
-  });
+export const getRides = async (
+    filters: { from?: string, to?: string, date?: string } = {}
+): Promise<Ride[]> => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const today = startOfDay(new Date());
+            
+            let filteredRides = rides.filter(ride => {
+                const rideDate = startOfDay(new Date(ride.date));
+                // Ensure ride is today or in the future
+                return isAfter(rideDate, today) || isEqual(rideDate, today);
+            });
+
+            if (filters.from && filters.from !== 'all') {
+                filteredRides = filteredRides.filter(ride => ride.from === filters.from);
+            }
+            if (filters.to && filters.to !== 'all') {
+                filteredRides = filteredRides.filter(ride => ride.to === filters.to);
+            }
+            if (filters.date) {
+                const filterDate = startOfDay(new Date(filters.date));
+                filteredRides = filteredRides.filter(ride => isEqual(startOfDay(new Date(ride.date)), filterDate));
+            }
+
+            // Sort by date, then by departure time
+            filteredRides.sort((a, b) => {
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                if (dateA !== dateB) {
+                    return dateA - dateB;
+                }
+                return a.departureTime.localeCompare(b.departureTime);
+            });
+            
+            resolve(filteredRides);
+        }, 500);
+    });
 };
 
 export const getRideById = async (id: string): Promise<Ride | undefined> => {

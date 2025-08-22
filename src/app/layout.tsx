@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/Header';
 import { cn } from '@/lib/utils';
+import { Suspense } from 'react';
 
 export const metadata: Metadata = {
   title: 'Sumo Sewa',
@@ -27,7 +28,11 @@ export default function RootLayout({
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
         <div className="relative flex min-h-screen flex-col">
           <Header />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1">
+             <Suspense fallback={<div>Loading...</div>}>
+              {children}
+            </Suspense>
+          </main>
         </div>
         <Toaster />
       </body>
