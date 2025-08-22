@@ -13,9 +13,9 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search, ExternalLink, CheckCircle, XCircle } from "lucide-react";
+import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { getUserProfile, getBookings } from "@/lib/data";
@@ -24,13 +24,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { updateBookingStatus } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Calendar } from "../ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { cn } from "@/lib/utils";
 
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
     const [bookings, setBookings] = useState(initialBookings);
-    const [nameFilter, setNameFilter] = useState("");
-    const [phoneFilter, setPhoneFilter] = useState("");
-    const [rideIdFilter, setRideIdFilter] = useState("");
+    const [dateFilter, setDateFilter] = useState<Date | undefined>();
+    const [statusFilter, setStatusFilter] = useState<string>("all");
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
@@ -54,12 +57,12 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
 
     const filteredBookings = useMemo(() => {
         return bookings.filter(booking => {
-            const nameMatch = nameFilter ? booking.passengerName.toLowerCase().includes(nameFilter.toLowerCase()) : true;
-            const phoneMatch = phoneFilter ? booking.passengerPhone.includes(phoneFilter) : true;
-            const rideIdMatch = rideIdFilter ? booking.rideId.toLowerCase().includes(rideIdFilter.toLowerCase()) : true;
-            return nameMatch && phoneMatch && rideIdMatch;
+            const bookingDate = booking.bookingTime instanceof Timestamp ? booking.bookingTime.toDate() : booking.bookingTime;
+            const dateMatch = !dateFilter || isSameDay(bookingDate, dateFilter);
+            const statusMatch = statusFilter === 'all' || booking.status === statusFilter;
+            return dateMatch && statusMatch;
         });
-    }, [bookings, nameFilter, phoneFilter, rideIdFilter]);
+    }, [bookings, dateFilter, statusFilter]);
 
     const handleStatusUpdate = (bookingId: string, rideId: string, seats: number[], newStatus: 'confirmed' | 'cancelled') => {
         startTransition(async () => {
@@ -126,36 +129,50 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         <div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end">
                 <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="nameFilter">Passenger Name</Label>
-                    <Input 
-                        id="nameFilter"
-                        placeholder="Filter by name..."
-                        value={nameFilter}
-                        onChange={(e) => setNameFilter(e.target.value)}
-                    />
+                    <Label htmlFor="date">Filter by Booking Date</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            variant={"outline"}
+                            className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !dateFilter && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateFilter ? format(dateFilter, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                        <Calendar
+                            mode="single"
+                            selected={dateFilter}
+                            onSelect={setDateFilter}
+                            initialFocus
+                        />
+                        </PopoverContent>
+                    </Popover>
                 </div>
                  <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="phoneFilter">Phone Number</Label>
-                    <Input 
-                        id="phoneFilter"
-                        placeholder="Filter by phone..."
-                        value={phoneFilter}
-                        onChange={(e) => setPhoneFilter(e.target.value)}
-                    />
+                    <Label htmlFor="statusFilter">Filter by Status</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger id="statusFilter">
+                            <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="pending-payment">Pending Payment</SelectItem>
+                            <SelectItem value="confirmed">Confirmed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
-                 <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="rideIdFilter">Ride ID</Label>
-                    <Input 
-                        id="rideIdFilter"
-                        placeholder="Filter by ride ID..."
-                        value={rideIdFilter}
-                        onChange={(e) => setRideIdFilter(e.target.value)}
-                    />
-                </div>
-                <Button onClick={handleExport}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Export CSV
-                </Button>
+                 <div className="grid w-full items-center gap-1.5 md:col-start-4">
+                     <Button onClick={handleExport}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export CSV
+                    </Button>
+                 </div>
             </div>
             <div className="rounded-md border">
                 <Table>
