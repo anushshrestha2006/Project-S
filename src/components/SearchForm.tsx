@@ -37,10 +37,10 @@ export function SearchForm() {
   };
   
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end">
-        <div className="relative">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <div className="relative md:col-span-1">
              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
-             <Select onValueChange={setFrom} value={from}>
+             <Select onValuechange={setFrom} value={from}>
                 <SelectTrigger className="pl-10">
                     <SelectValue placeholder="From" />
                 </SelectTrigger>
@@ -50,7 +50,7 @@ export function SearchForm() {
                 </SelectContent>
             </Select>
         </div>
-       <div className="relative">
+       <div className="relative md:col-span-1">
              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
             <Select onValueChange={setTo} value={to}>
                 <SelectTrigger className="pl-10">
@@ -84,7 +84,7 @@ export function SearchForm() {
           />
         </PopoverContent>
       </Popover>
-      <Button onClick={handleSearch} className="lg:col-start-4">
+      <Button onClick={handleSearch}>
         <Search className="mr-2 h-4 w-4" /> Search
       </Button>
     </div>
