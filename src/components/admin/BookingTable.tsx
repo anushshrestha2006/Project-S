@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -86,7 +87,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
             const dateMatch = !dateFilter || format(rideDate, 'yyyy-MM-dd') === format(dateFilter, 'yyyy-MM-dd');
             const statusMatch = statusFilter === 'all' || booking.status === statusFilter;
             const vehicleMatch = vehicleTypeFilter === 'all' || booking.rideDetails.vehicleType === vehicleTypeFilter;
-            const idMatch = !ticketIdFilter || booking.ticketId.toLowerCase().includes(ticketIdFilter.toLowerCase());
+            const idMatch = !ticketIdFilter || (booking.ticketId && booking.ticketId.toLowerCase().includes(ticketIdFilter.toLowerCase()));
 
             return dateMatch && statusMatch && idMatch && vehicleMatch;
         });
@@ -329,7 +330,11 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
             </div>
              <Dialog open={isTicketDialogOpen} onOpenChange={setIsTicketDialogOpen}>
                 <DialogContent className="max-w-md p-0 bg-transparent border-0 shadow-none">
-                     {selectedBooking && <TicketContent booking={selectedBooking} />}
+                     <DialogHeader className="sr-only">
+                        <DialogTitle>Ticket Preview</DialogTitle>
+                        <DialogDescription>A preview of the generated ticket for booking {selectedBooking?.ticketId}.</DialogDescription>
+                    </DialogHeader>
+                    {selectedBooking && <TicketContent booking={selectedBooking} />}
                 </DialogContent>
             </Dialog>
         </div>
