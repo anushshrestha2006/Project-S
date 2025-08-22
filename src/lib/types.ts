@@ -1,3 +1,5 @@
+import type { Timestamp } from 'firebase/firestore';
+
 export type SeatStatus = 'available' | 'booked' | 'locked';
 
 export type Seat = {
@@ -23,7 +25,7 @@ export type Booking = {
   rideId: string;
   userId: string;
   seats: number[]; // array of seat numbers
-  bookingTime: Date;
+  bookingTime: Date | Timestamp;
   passengerName: string;
   passengerPhone: string;
 };
@@ -33,7 +35,6 @@ export type User = {
   name: string;
   email: string;
   phoneNumber?: string;
-  photoURL?: string; // Keep this for now to avoid breaking header, but it won't be set
   role: 'user' | 'admin';
   bookings?: Pick<Booking, 'rideId' | 'seats'>[];
 };

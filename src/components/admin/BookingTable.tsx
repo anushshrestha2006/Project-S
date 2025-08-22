@@ -17,7 +17,8 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { getUserProfile } from "@/lib/data";
+import { getUserProfile, getBookings } from "@/lib/data";
+import { Timestamp } from "firebase/firestore";
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
     const [bookings, setBookings] = useState(initialBookings);
@@ -30,6 +31,10 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 const profile = await getUserProfile(user.uid);
                 if (profile?.role !== 'admin') {
                     router.replace('/');
+                } else {
+                    // Fetch latest bookings when admin is confirmed
+                    const freshBookings = await getBookings();
+                    setBookings(freshBookings);
                 }
             } else {
                 router.replace('/login');
@@ -51,13 +56,14 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         const csvRows = [headers.join(",")];
         
         filteredBookings.forEach(booking => {
+            const bookingTime = booking.bookingTime instanceof Timestamp ? booking.bookingTime.toDate() : booking.bookingTime;
             const row = [
                 booking.id,
                 booking.rideId,
                 `"${booking.passengerName}"`,
                 booking.passengerPhone,
                 `"${booking.seats.join(" ")}"`,
-                format(booking.bookingTime, "yyyy-MM-dd HH:mm")
+                format(bookingTime, "yyyy-MM-dd HH:mm")
             ];
             csvRows.push(row.join(","));
         });
@@ -75,6 +81,11 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
             document.body.removeChild(link);
         }
     };
+
+    const formatBookingTime = (time: Date | Timestamp) => {
+        const date = time instanceof Timestamp ? time.toDate() : time;
+        return format(date, "PPpp");
+    }
 
     return (
         <div>
@@ -114,7 +125,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                     <TableCell>{booking.passengerName}</TableCell>
                                     <TableCell>{booking.passengerPhone}</TableCell>
                                     <TableCell>{booking.seats.join(', ')}</TableCell>
-                                    <TableCell>{format(booking.bookingTime, "PPpp")}</TableCell>
+                                    <TableCell>{formatBookingTime(booking.bookingTime)}</TableCell>
                                 </TableRow>
                             ))
                         ) : (
