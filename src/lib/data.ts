@@ -5,16 +5,25 @@ import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where,
 import type { Ride, Booking, User, Seat, SeatStatus } from './types';
 import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
-const initialSeats: Seat[] = Array.from({ length: 9 }, (_, i) => ({
+const initialSeatsSumo: Seat[] = Array.from({ length: 9 }, (_, i) => ({
+    number: i + 1,
+    status: 'available',
+}));
+
+const initialSeatsEV: Seat[] = Array.from({ length: 10 }, (_, i) => ({
     number: i + 1,
     status: 'available',
 }));
 
 const RIDE_TEMPLATES = [
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM' },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM' },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM' },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM' },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', price: 950, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', price: 950, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', price: 950, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', price: 950, totalSeats: 10, initialSeats: initialSeatsEV },
 ] as const;
 
 
@@ -31,12 +40,15 @@ const generateRides = (): Ride[] => {
         RIDE_TEMPLATES.forEach((template, index) => {
             rides.push({
                 id: `${dateStr}-${index + 1}`,
-                ...template,
-                price: 850,
-                vehicleType: 'Sumo',
+                from: template.from,
+                to: template.to,
+                departureTime: template.departureTime,
+                arrivalTime: template.arrivalTime,
+                price: template.price,
+                vehicleType: template.vehicleType,
                 date: dateStr,
-                seats: JSON.parse(JSON.stringify(initialSeats)),
-                totalSeats: 9,
+                seats: JSON.parse(JSON.stringify(template.initialSeats)),
+                totalSeats: template.totalSeats,
             });
         });
     }

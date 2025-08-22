@@ -14,8 +14,8 @@ export type Ride = {
   to: 'Birgunj' | 'Kathmandu';
   departureTime: string; // e.g., "06:00 AM"
   arrivalTime: string; // e.g., "02:00 PM"
-  vehicleType: 'Sumo';
-  totalSeats: 9;
+  vehicleType: 'Sumo' | 'EV';
+  totalSeats: number;
   seats: Seat[];
   price: number;
   date: string; // YYYY-MM-DD

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useActionState } from 'react';
@@ -113,38 +114,81 @@ export function SeatSelection({ ride }: { ride: Ride }) {
   const totalPrice = selectedSeats.length * ride.price;
 
   const renderSeats = () => {
-    const seatLayout = [];
-    const frontSeat = ride.seats[0];
-
-    seatLayout.push(
-        <div key={`seat-${frontSeat.number}`} className="col-start-1">
-            <Seat
-                seat={frontSeat}
-                isSelected={selectedSeats.includes(frontSeat.number)}
-                onSelect={handleSelectSeat}
-            />
-        </div>
-    );
+    const seatLayout: React.ReactNode[] = [];
     
+    // Driver seat is always in the same position
     seatLayout.push(
         <div key="driver" className="flex flex-col items-center justify-center text-muted-foreground col-start-4">
             <SteeringWheel className="w-6 h-6 sm:w-8 sm:h-8" />
             <span className="text-xs font-semibold">Driver</span>
         </div>
     );
+     seatLayout.push(<div key="spacer-driver" className="col-span-4 h-4"></div>);
 
-    seatLayout.push(<div key="spacer-1" className="col-span-4 h-4"></div>);
 
-    ride.seats.slice(1).forEach((seat) => {
+    if (ride.vehicleType === 'Sumo' && ride.totalSeats === 9) {
+        // Sumo layout: 1 front, 4x2 back
+        const frontSeat = ride.seats[0];
         seatLayout.push(
-            <Seat
-                key={seat.number}
-                seat={seat}
-                isSelected={selectedSeats.includes(seat.number)}
-                onSelect={handleSelectSeat}
-            />
+            <div key={`seat-${frontSeat.number}`} className="col-start-1">
+                <Seat
+                    seat={frontSeat}
+                    isSelected={selectedSeats.includes(frontSeat.number)}
+                    onSelect={handleSelectSeat}
+                />
+            </div>
         );
-    });
+        seatLayout.push(<div key="spacer-sumo-1" className="col-span-4 h-4"></div>);
+        ride.seats.slice(1).forEach((seat) => {
+            seatLayout.push(
+                <Seat
+                    key={seat.number}
+                    seat={seat}
+                    isSelected={selectedSeats.includes(seat.number)}
+                    onSelect={handleSelectSeat}
+                />
+            );
+        });
+    } else if (ride.vehicleType === 'EV' && ride.totalSeats === 10) {
+        // EV Layout: 1, 3, 3, 3
+        const rows = [1, 3, 3, 3];
+        let seatIndex = 0;
+
+        rows.forEach((numSeats, rowIndex) => {
+            for (let i = 0; i < numSeats; i++) {
+                const seat = ride.seats[seatIndex];
+                if(seat) {
+                    seatLayout.push(
+                        <Seat
+                            key={seat.number}
+                            seat={seat}
+                            isSelected={selectedSeats.includes(seat.number)}
+                            onSelect={handleSelectSeat}
+                        />
+                    );
+                }
+                seatIndex++;
+            }
+             // Add a spacer after each row except the last
+            if (rowIndex < rows.length -1) {
+                seatLayout.push(<div key={`spacer-ev-${rowIndex}`} className="col-span-4 h-4"></div>);
+            }
+        });
+
+    } else {
+        // Default layout for any other case
+         ride.seats.forEach((seat) => {
+            seatLayout.push(
+                <Seat
+                    key={seat.number}
+                    seat={seat}
+                    isSelected={selectedSeats.includes(seat.number)}
+                    onSelect={handleSelectSeat}
+                />
+            );
+        });
+    }
+    
     return seatLayout;
   };
 
