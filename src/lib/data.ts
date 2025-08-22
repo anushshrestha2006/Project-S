@@ -1,5 +1,6 @@
+
 import { db } from './firebase';
-import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat } from './types';
 import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
@@ -8,154 +9,38 @@ const initialSeats: Seat[] = Array.from({ length: 9 }, (_, i) => ({
     status: 'available',
 }));
 
-// Hardcoded in-memory database for rides. We will keep this for ride schedules.
-let ridesDB: Ride[] = [
-    // Rides for today
-    {
-        id: '1',
-        from: 'Birgunj',
-        to: 'Kathmandu',
-        departureTime: '06:00 AM',
-        arrivalTime: '02:00 PM',
-        price: 850,
-        vehicleType: 'Sumo',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        seats: JSON.parse(JSON.stringify(initialSeats)),
-        totalSeats: 9,
-    },
-    {
-        id: '2',
-        from: 'Kathmandu',
-        to: 'Birgunj',
-        departureTime: '06:00 AM',
-        arrivalTime: '02:00 PM',
-        price: 850,
-        vehicleType: 'Sumo',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        seats: JSON.parse(JSON.stringify(initialSeats)),
-        totalSeats: 9,
-    },
-     {
-        id: '3',
-        from: 'Birgunj',
-        to: 'Kathmandu',
-        departureTime: '10:00 AM',
-        arrivalTime: '06:00 PM',
-        price: 850,
-        vehicleType: 'Sumo',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        seats: JSON.parse(JSON.stringify(initialSeats)),
-        totalSeats: 9,
-    },
-    {
-        id: '4',
-        from: 'Kathmandu',
-        to: 'Birgunj',
-        departureTime: '10:00 AM',
-        arrivalTime: '06:00 PM',
-        price: 850,
-        vehicleType: 'Sumo',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        seats: JSON.parse(JSON.stringify(initialSeats)),
-        totalSeats: 9,
-    },
-    // Rides for tomorrow
-    {
-        id: '5',
-        from: 'Birgunj',
-        to: 'Kathmandu',
-        departureTime: '06:00 AM',
-        arrivalTime: '02:00 PM',
-        price: 850,
-        vehicleType: 'Sumo',
-        date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
-        seats: JSON.parse(JSON.stringify(initialSeats)),
-        totalSeats: 9,
-    },
-     {
-        id: '6',
-        from: 'Kathmandu',
-        to: 'Birgunj',
-        departureTime: '06:00 AM',
-        arrivalTime: '02:00 PM',
-        price: 850,
-        vehicleType: 'Sumo',
-        date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
-        seats: JSON.parse(JSON.stringify(initialSeats)),
-        totalSeats: 9,
-    },
-      {
-        id: '7',
-        from: 'Birgunj',
-        to: 'Kathmandu',
-        departureTime: '10:00 AM',
-        arrivalTime: '06:00 PM',
-        price: 850,
-        vehicleType: 'Sumo',
-        date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
-        seats: JSON.parse(JSON.stringify(initialSeats)),
-        totalSeats: 9,
-    },
-       {
-        id: '8',
-        from: 'Kathmandu',
-        to: 'Birgunj',
-        departureTime: '10:00 AM',
-        arrivalTime: '06:00 PM',
-        price: 850,
-        vehicleType: 'Sumo',
-        date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
-        seats: JSON.parse(JSON.stringify(initialSeats)),
-        totalSeats: 9,
-    },
-     // Add some rides for 2 days from now for testing upcoming logic
-    {
-        id: '9',
-        from: 'Birgunj',
-        to: 'Kathmandu',
-        departureTime: '06:00 AM',
-        arrivalTime: '02:00 PM',
-        price: 850,
-        vehicleType: 'Sumo',
-        date: format(addDays(new Date(), 2), 'yyyy-MM-dd'),
-        seats: JSON.parse(JSON.stringify(initialSeats)),
-        totalSeats: 9,
-    },
-    {
-        id: '10',
-        from: 'Kathmandu',
-        to: 'Birgunj',
-        departureTime: '10:00 AM',
-        arrivalTime: '06:00 PM',
-        price: 850,
-        vehicleType: 'Sumo',
-        date: format(addDays(new Date(), 2), 'yyyy-MM-dd'),
-        seats: JSON.parse(JSON.stringify(initialSeats)),
-        totalSeats: 9,
-    }
-];
-const ridesCollection = collection(db, 'rides');
+const RIDE_TEMPLATES = [
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM' },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM' },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM' },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM' },
+] as const;
+
 
 /**
- * Initializes the rides in Firestore if they don't exist.
- * This should be run once, but it's safe to call multiple times.
+ * Generates a list of all rides for the next 7 days.
+ * IDs are deterministic based on date and template.
  */
-async function seedDatabase() {
-    for (const rideData of ridesDB) {
-        const rideRef = doc(db, 'rides', rideData.id);
-        const rideSnap = await getDoc(rideRef);
-        if (!rideSnap.exists()) {
-            await runTransaction(db, async (transaction) => {
-                const rideDoc = await transaction.get(rideRef);
-                if (!rideDoc.exists()) {
-                    transaction.set(rideRef, rideData);
-                }
+const generateRides = (): Ride[] => {
+    const rides: Ride[] = [];
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+        const date = addDays(today, i);
+        const dateStr = format(date, 'yyyy-MM-dd');
+        RIDE_TEMPLATES.forEach((template, index) => {
+            rides.push({
+                id: `${dateStr}-${index + 1}`,
+                ...template,
+                price: 850,
+                vehicleType: 'Sumo',
+                date: dateStr,
+                seats: JSON.parse(JSON.stringify(initialSeats)),
+                totalSeats: 9,
             });
-        }
+        });
     }
+    return rides;
 }
-// Seed the database on startup
-seedDatabase().catch(console.error);
 
 
 // Helper to get current time in Nepal (UTC+5:45)
@@ -172,9 +57,10 @@ export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
     
-    let allRides: Ride[] = JSON.parse(JSON.stringify(ridesDB));
+    let allRides: Ride[] = generateRides();
     
-    const ridesSnapshot = await getDocs(query(ridesCollection));
+    const rideIds = allRides.map(r => r.id);
+    const ridesSnapshot = await getDocs(query(collection(db, 'rides'), where('__name__', 'in', rideIds)));
     const firestoreRides = new Map(ridesSnapshot.docs.map(doc => [doc.id, doc.data() as Ride]));
 
     allRides = allRides.map(ride => {
@@ -199,26 +85,27 @@ export const getRides = async (
     if (filters.date) {
         finalRideList = allRides.filter(ride => ride.date === filters.date);
     } else {
+        // Default view: show rides for today that haven't departed yet.
+        // If all of today's rides have departed, show tomorrow's rides instead.
         const todayRides = allRides.filter(ride => ride.date === todayStr);
         const availableTodayRides = todayRides.filter(ride => {
-            const departureDateTime = parse(ride.departureTime, 'hh:mm a', parseISO(`${ride.date}T00:00:00.000Z`));
+            const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
             return departureDateTime > now;
         });
 
         if (availableTodayRides.length > 0) {
             finalRideList = availableTodayRides;
         } else {
+            // If no rides are available today, default to showing tomorrow's schedule
             finalRideList = allRides.filter(ride => ride.date === tomorrowStr);
         }
     }
 
-    if (filters.date === todayStr || (!filters.date && finalRideList.some(r => r.date === todayStr))) {
-         finalRideList = finalRideList.filter(ride => {
-            if (ride.date !== todayStr) return true; // Keep future-day rides
-            const departureDateTime = parse(ride.departureTime, 'hh:mm a', parseISO(`${ride.date}T00:00:00.000Z`));
-            return departureDateTime > now;
-        });
-    }
+    // Always filter out past rides for the selected date
+    finalRideList = finalRideList.filter(ride => {
+        const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
+        return departureDateTime > now;
+    });
 
 
     finalRideList.sort((a, b) => {
@@ -239,29 +126,39 @@ export const getRideById = async (id: string, includePast = false): Promise<Ride
     const rideRef = doc(db, 'rides', id);
     const rideSnap = await getDoc(rideRef);
     
-    if (!rideSnap.exists()) {
-        const baseRide = ridesDB.find(r => r.id === id);
+    if (rideSnap.exists()) {
+        const ride = rideSnap.data() as Ride;
+         // Even if it exists in Firestore, we merge with template to get all properties
+        const allRides = generateRides();
+        const templateRide = allRides.find(r => r.id === id);
+        if (!templateRide) return undefined; // Should not happen if ID is correct
+        
+        const mergedRide = { ...templateRide, ...ride };
+        
+        if (!includePast) {
+            const now = getNepalTime();
+            const departureDateTime = parse(`${mergedRide.date} ${mergedRide.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
+            if (isPast(departureDateTime)) {
+                return undefined;
+            }
+        }
+        return { id: rideSnap.id, ...mergedRide };
+
+    } else {
+        // If not in firestore, it must be from our generated list
+        const baseRide = generateRides().find(r => r.id === id);
         if(!baseRide) return undefined;
-        // This logic is for rides that might not be in firestore yet, but are in our hardcoded list
-        await setDoc(rideRef, baseRide);
+        
+         if (!includePast) {
+            const now = getNepalTime();
+            const departureDateTime = parse(`${baseRide.date} ${baseRide.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
+            if (isPast(departureDateTime)) {
+                return undefined;
+            }
+        }
+        // Don't create it here, create it on booking.
         return baseRide as Ride;
     }
-
-    const ride = rideSnap.data() as Ride;
-
-    if (includePast) {
-        return { id: rideSnap.id, ...ride };
-    }
-
-    const now = getNepalTime();
-    const rideDate = parseISO(ride.date);
-    const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
-    
-    if (isPast(departureDateTime)) {
-        return undefined; // Ride has already departed
-    }
-
-    return { id: rideSnap.id, ...ride };
 };
 
 export const getBookings = async (): Promise<Booking[]> => {
@@ -309,17 +206,24 @@ export const createBooking = async (
   bookingData: Omit<Booking, 'id' | 'bookingTime'>
 ): Promise<Booking> => {
     const rideRef = doc(db, 'rides', bookingData.rideId);
-    const userRef = doc(db, 'users', bookingData.userId);
-
+    
     let newBookingId: string;
 
     await runTransaction(db, async (transaction) => {
         const rideDoc = await transaction.get(rideRef);
-        if (!rideDoc.exists()) {
-            throw new Error("Ride not found!");
-        }
+        let ride: Ride;
 
-        const ride = rideDoc.data() as Ride;
+        if (!rideDoc.exists()) {
+             // If ride doesn't exist in Firestore, get it from our generator
+            const generatedRide = generateRides().find(r => r.id === bookingData.rideId);
+            if (!generatedRide) {
+                throw new Error("Ride schedule not found!");
+            }
+            ride = generatedRide;
+            // No need to create it here, we will set it with the transaction
+        } else {
+            ride = rideDoc.data() as Ride;
+        }
 
         bookingData.seats.forEach(seatNumber => {
             const seat = ride.seats.find(s => s.number === seatNumber);
@@ -333,7 +237,9 @@ export const createBooking = async (
                 ? { ...seat, status: 'booked' }
                 : seat
         );
-        transaction.update(rideRef, { seats: newSeats });
+        
+        // Use set with merge:true to create or update the ride document
+        transaction.set(rideRef, { seats: newSeats }, { merge: true });
 
         const bookingWithTimestamp = {
             ...bookingData,
@@ -366,3 +272,5 @@ export const getUserProfile = async (userId: string): Promise<User | null> => {
     }
     return null;
 }
+
+    
