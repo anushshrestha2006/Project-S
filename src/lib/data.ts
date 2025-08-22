@@ -1,4 +1,5 @@
 
+
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat } from './types';
@@ -151,48 +152,50 @@ export const getRides = async (
 ): Promise<Ride[]> => {
     
     // Create a fresh copy to avoid in-memory data modification across requests.
-    let availableRides = JSON.parse(JSON.stringify(ridesDB));
+    let allRides = JSON.parse(JSON.stringify(ridesDB));
     
     // 1. Filter by route (from/to)
     if (filters.from && filters.from !== 'all') {
-        availableRides = availableRides.filter(ride => ride.from === filters.from);
+        allRides = allRides.filter(ride => ride.from === filters.from);
     }
     if (filters.to && filters.to !== 'all') {
-        availableRides = availableRides.filter(ride => ride.to === filters.to);
+        allRides = allRides.filter(ride => ride.to === filters.to);
     }
     
     const now = getNepalTime();
     const todayStr = format(now, 'yyyy-MM-dd');
     const tomorrowStr = format(addDays(now, 1), 'yyyy-MM-dd');
 
-    // 2. Filter by date logic
-    let finalRideList = availableRides.filter(ride => {
-        // If a specific date is selected, filter by that date.
-        if (filters.date) {
-            return ride.date === filters.date;
-        }
-        // If no date is selected, show rides for today AND tomorrow by default.
-        return ride.date === todayStr || ride.date === tomorrowStr;
-    });
+    let finalRideList;
 
-    // 3. Filter by time logic (Always apply for today's rides)
-    finalRideList = finalRideList.filter(ride => {
-        const rideDate = parseISO(ride.date);
-        const rideDateStr = format(rideDate, 'yyyy-MM-dd');
-
-        // If the ride is for a future date, always include it.
-        if (rideDateStr > todayStr) {
-            return true;
-        }
-        // If the ride is for today, check if departure time has passed.
-        if (rideDateStr === todayStr) {
-            const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
-            // Only include the ride if its departure time is in the future.
+    // If a specific date is selected, filter by that date.
+    if (filters.date) {
+        finalRideList = allRides.filter(ride => ride.date === filters.date);
+    } else {
+        // If no date is selected, try to find rides for today first.
+        const todayRides = allRides.filter(ride => ride.date === todayStr);
+        const availableTodayRides = todayRides.filter(ride => {
+            const departureDateTime = parse(ride.departureTime, 'hh:mm a', parseISO(`${ride.date}T00:00:00.000Z`));
             return departureDateTime > now;
+        });
+
+        if (availableTodayRides.length > 0) {
+            // If there are available rides today, show them.
+            finalRideList = availableTodayRides;
+        } else {
+            // Otherwise, show all rides for tomorrow.
+            finalRideList = allRides.filter(ride => ride.date === tomorrowStr);
         }
-        // Exclude rides from past dates
-        return false;
-    });
+    }
+
+    // 3. Filter by time logic for the selected day if it is today
+    if (filters.date === todayStr) {
+         finalRideList = finalRideList.filter(ride => {
+            const departureDateTime = parse(ride.departureTime, 'hh:mm a', parseISO(`${ride.date}T00:00:00.000Z`));
+            return departureDateTime > now;
+        });
+    }
+
 
     // Sort the final results
     finalRideList.sort((a, b) => {
@@ -212,13 +215,16 @@ export const getRides = async (
 
 export const getRideById = async (id: string): Promise<Ride | undefined> => {
     // We add more rides to the DB to ensure upcoming rides are available
-    const allRides = [...ridesDB];
-    for (let i = 2; i <= 7; i++) {
+    const allRides: Ride[] = [];
+    for (let i = 0; i <= 7; i++) { // Generate for today + next 7 days
         ridesDB.forEach(ride => {
-            const futureRide = JSON.parse(JSON.stringify(ride));
-            futureRide.id = `${ride.id}-day${i}`;
-            futureRide.date = format(addDays(new Date(), i), 'yyyy-MM-dd');
-            allRides.push(futureRide);
+            // The original ride object in ridesDB represents a template for a certain time/route
+            // We create a new ride instance for each day
+            const dailyRide = JSON.parse(JSON.stringify(ride));
+            // Important: Create a unique ID for each day's ride
+            dailyRide.id = i === 0 && (dailyRide.id === '1' || dailyRide.id === '2' || dailyRide.id === '3' || dailyRide.id === '4') ? dailyRide.id : `${ride.id}-day${i}`;
+            dailyRide.date = format(addDays(new Date(), i), 'yyyy-MM-dd');
+            allRides.push(dailyRide);
         });
     }
     return allRides.find(ride => ride.id === id);
