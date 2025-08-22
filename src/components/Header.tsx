@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bus, User as UserIcon, LogOut, LogIn } from 'lucide-react';
+import { Bus, User as UserIcon, LogOut, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { User } from '@/lib/types';
 import {
@@ -78,12 +78,20 @@ export default function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Link href="/login">
-                <Button variant="outline">
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Login
-                </Button>
-              </Link>
+              <>
+                <Link href="/login">
+                  <Button variant="outline">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Login
+                  </Button>
+                </Link>
+                 <Link href="/signup">
+                  <Button>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Sign Up
+                  </Button>
+                </Link>
+              </>
             )}
           </nav>
         </div>
