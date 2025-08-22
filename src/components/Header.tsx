@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard } from 'lucide-react';
+import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { User } from '@/lib/types';
 import {
@@ -35,7 +35,6 @@ export default function Header() {
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || "User",
                 email: firebaseUser.email || "",
-                photoURL: firebaseUser.photoURL || undefined,
                 role: 'user'
              }
              setUser(tempUser);
@@ -93,6 +92,12 @@ export default function Header() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                   <Link href="/my-bookings">
+                      <DropdownMenuItem>
+                          <Ticket className="mr-2 h-4 w-4" />
+                          My Bookings
+                      </DropdownMenuItem>
+                  </Link>
                   {user.role === 'admin' && (
                      <Link href="/admin">
                         <DropdownMenuItem>
