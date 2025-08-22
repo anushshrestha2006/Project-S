@@ -20,10 +20,10 @@ const RIDE_TEMPLATES = [
     { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
     { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
     { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', price: 950, totalSeats: 10, initialSeats: initialSeatsEV },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', price: 950, totalSeats: 10, initialSeats: initialSeatsEV },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', price: 950, totalSeats: 10, initialSeats: initialSeatsEV },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', price: 950, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
 ] as const;
 
 
