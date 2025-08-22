@@ -1,4 +1,5 @@
 import type { Ride, Booking, User } from './types';
+import { format } from 'date-fns';
 
 // Mock data
 let rides: Ride[] = [
@@ -96,16 +97,24 @@ let users: User[] = [
 export const getRides = async (filters?: { from?: string; to?: string; date?: string }): Promise<Ride[]> => {
     return new Promise((resolve) => {
         setTimeout(() => {
-            if (!filters || (!filters.from && !filters.to && !filters.date)) {
-                return resolve(rides);
-            }
+            let filteredRides = rides;
 
-            const filteredRides = rides.filter(ride => {
-                const fromMatch = !filters.from || ride.from === filters.from;
-                const toMatch = !filters.to || ride.to === filters.to;
-                const dateMatch = !filters.date || ride.date === filters.date;
-                return fromMatch && toMatch && dateMatch;
-            });
+            if (filters && (filters.from || filters.to || filters.date)) {
+                 filteredRides = rides.filter(ride => {
+                    const fromMatch = !filters.from || ride.from === filters.from;
+                    const toMatch = !filters.to || ride.to === filters.to;
+                    const dateMatch = !filters.date || ride.date === filters.date;
+                    return fromMatch && toMatch && dateMatch;
+                });
+            } else {
+                 const today = new Date();
+                 today.setHours(0, 0, 0, 0); 
+                 filteredRides = rides.filter(ride => new Date(ride.date) >= today);
+            }
+           
+            // Sort by date
+            filteredRides.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
             resolve(filteredRides);
         }, 500);
     });
