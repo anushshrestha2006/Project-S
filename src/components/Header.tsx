@@ -26,15 +26,11 @@ export default function Header() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // User is signed in, see docs for a list of available properties
-        // https://firebase.google.com/docs/reference/js/firebase.User
         const profile = await getUserProfile(firebaseUser.uid);
         if (profile) {
             setUser(profile);
             localStorage.setItem('sumo-sewa-user', JSON.stringify(profile));
         } else {
-             // This case might happen if the Firestore doc isn't created yet
-             // or if there's a lag. We can handle it gracefully.
              const tempUser: User = {
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || "User",
@@ -46,7 +42,6 @@ export default function Header() {
              localStorage.setItem('sumo-sewa-user', JSON.stringify(tempUser));
         }
       } else {
-        // User is signed out
         setUser(null);
         localStorage.removeItem('sumo-sewa-user');
       }

@@ -33,7 +33,7 @@ export type User = {
   name: string;
   email: string;
   phoneNumber?: string;
-  photoURL?: string;
+  photoURL?: string; // Keep this for now to avoid breaking header, but it won't be set
   role: 'user' | 'admin';
   bookings?: Pick<Booking, 'rideId' | 'seats'>[];
 };
