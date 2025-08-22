@@ -132,7 +132,7 @@ function TicketSkeleton() {
     )
 }
 
-export default function TicketPage({ params }: { params: { bookingId: string }}) {
+export default function TicketPage({ params: { bookingId } }: { params: { bookingId: string }}) {
     const [booking, setBooking] = useState<Booking | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -141,7 +141,7 @@ export default function TicketPage({ params }: { params: { bookingId: string }})
     useEffect(() => {
         const fetchBooking = async () => {
             setIsLoading(true);
-            const bookingData = await getBookingById(params.bookingId);
+            const bookingData = await getBookingById(bookingId);
             if (!bookingData) {
                 notFound();
             }
@@ -149,7 +149,7 @@ export default function TicketPage({ params }: { params: { bookingId: string }})
             setIsLoading(false);
         };
         fetchBooking();
-    }, [params.bookingId]);
+    }, [bookingId]);
 
     const handleDownload = async () => {
         if (!ticketRef.current || !booking) return;
