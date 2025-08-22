@@ -30,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useDebouncedCallback } from "use-debounce";
+import { ClearBookingsButton } from "./ClearBookingsButton";
 
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
@@ -204,11 +205,12 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                         </SelectContent>
                     </Select>
                 </div>
-                 <div className="grid w-full items-center gap-1.5 md:col-start-4">
-                     <Button onClick={handleExport}>
+                 <div className="grid grid-cols-2 w-full items-center gap-2 md:col-start-4">
+                     <Button onClick={handleExport} variant="outline">
                         <Download className="mr-2 h-4 w-4" />
-                        Export CSV
+                        Export
                     </Button>
+                    <ClearBookingsButton onClear={() => setBookings([])} />
                  </div>
             </div>
             <div className="rounded-md border">

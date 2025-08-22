@@ -2,12 +2,12 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection } from 'firebase/firestore';
 
 const BookingFormSchema = z.object({
   rideId: z.string(),
@@ -114,5 +114,28 @@ export async function updateBookingStatus(
         console.error('Error updating booking status:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
         return { success: false, message: errorMessage };
+    }
+}
+
+export async function clearAllBookings(): Promise<{ success: boolean; message: string }> {
+    try {
+        const bookingsCollection = collection(db, 'bookings');
+        const ridesCollection = collection(db, 'rides');
+
+        const bookingsToDelete = await getAllCollectionDocuments(bookingsCollection);
+        await deleteAllDocuments(bookingsToDelete);
+        
+        const ridesToDelete = await getAllCollectionDocuments(ridesCollection);
+        await deleteAllDocuments(ridesToDelete);
+        
+        revalidatePath('/admin');
+        revalidatePath('/my-bookings');
+        revalidatePath('/');
+
+        return { success: true, message: 'All bookings and ride data have been cleared.' };
+    } catch (error) {
+        console.error('Error clearing all bookings:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+        return { success: false, message: `Failed to clear bookings: ${errorMessage}` };
     }
 }

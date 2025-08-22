@@ -1,7 +1,7 @@
 
 
 import { db } from './firebase';
-import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc, DocumentData, QuerySnapshot } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat, SeatStatus } from './types';
 import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
@@ -336,4 +336,16 @@ export const getUserProfile = async (userId: string): Promise<User | null> => {
         } as User;
     }
     return null;
+}
+
+export async function getAllCollectionDocuments(collectionRef: any): Promise<QuerySnapshot<DocumentData>> {
+    return await getDocs(collectionRef);
+}
+
+export async function deleteAllDocuments(snapshot: QuerySnapshot<DocumentData>) {
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
 }
