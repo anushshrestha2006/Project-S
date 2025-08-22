@@ -7,17 +7,23 @@ import { Calendar as CalendarIcon, Search, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Input } from '@/components/ui/input';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 export function SearchForm() {
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [from, setFrom] = useState<string | undefined>();
+  const [to, setTo] = useState<string | undefined>();
   const [date, setDate] = useState<Date | undefined>();
   const { toast } = useToast();
 
@@ -33,22 +39,28 @@ export function SearchForm() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end">
         <div className="relative">
-             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-             <Input
-                placeholder="From"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="pl-10"
-            />
+             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
+             <Select onValueChange={setFrom} value={from}>
+                <SelectTrigger className="pl-10">
+                    <SelectValue placeholder="From" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="Birgunj">Birgunj</SelectItem>
+                    <SelectItem value="Kathmandu">Kathmandu</SelectItem>
+                </SelectContent>
+            </Select>
         </div>
        <div className="relative">
-             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-                placeholder="To"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="pl-10"
-            />
+             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
+            <Select onValueChange={setTo} value={to}>
+                <SelectTrigger className="pl-10">
+                    <SelectValue placeholder="To" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="Birgunj">Birgunj</SelectItem>
+                    <SelectItem value="Kathmandu">Kathmandu</SelectItem>
+                </SelectContent>
+            </Select>
        </div>
       <Popover>
         <PopoverTrigger asChild>
