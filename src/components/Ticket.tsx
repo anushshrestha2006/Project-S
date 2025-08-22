@@ -80,7 +80,7 @@ export function TicketContent({ booking }: { booking: Booking }) {
                         <Ticket className="w-5 h-5 mt-0.5 text-primary"/>
                         <div>
                             <p className="text-xs text-muted-foreground">Booking ID</p>
-                            <p className="font-mono text-xs font-semibold">{bookingId}</p>
+                            <p className="font-mono text-xs font-semibold break-all">{bookingId}</p>
                         </div>
                     </div>
                 </div>

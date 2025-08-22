@@ -48,7 +48,9 @@ export default function TicketPage({ params }: { params: { bookingId: string }})
             setBooking(bookingData);
             setIsLoading(false);
         };
-        fetchBooking();
+        if (bookingId) {
+            fetchBooking();
+        }
     }, [bookingId]);
     
     return (
