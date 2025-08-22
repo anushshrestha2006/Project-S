@@ -1,12 +1,55 @@
 import { db } from './firebase';
-import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat } from './types';
 import { format, isAfter, isEqual, startOfDay } from 'date-fns';
+
+
+// A flag to control the one-time reset. In a real app, you'd use a more robust
+// system for data seeding, like a separate admin script.
+const RESET_DATA_ONCE = false; 
+
+const initialSeats: Seat[] = [
+    { number: 1, status: 'available' },
+    { number: 2, status: 'available' },
+    { number: 3, status: 'available' },
+    { number: 4, status: 'available' },
+    { number: 5, status: 'available' },
+    { number: 6, status: 'available' },
+    { number: 7, status: 'available' },
+    { number: 8, status: 'available' },
+    { number: 9, status: 'available' },
+];
+
+async function resetRidesAndBookings() {
+    console.log("Performing one-time data reset...");
+    const batch = writeBatch(db);
+
+    // 1. Delete all bookings
+    const bookingsSnapshot = await getDocs(collection(db, 'bookings'));
+    bookingsSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
+    // 2. Reset seats in all rides
+    const ridesSnapshot = await getDocs(collection(db, 'rides'));
+    ridesSnapshot.docs.forEach(doc => {
+        batch.update(doc.ref, { seats: initialSeats });
+    });
+
+    await batch.commit();
+    console.log("Data reset complete.");
+}
 
 
 export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
+    // This is a temporary development feature to easily reset the data.
+    // To re-run, change RESET_DATA_ONCE to true, save, let it run, then change it back to false.
+    if (RESET_DATA_ONCE) {
+        await resetRidesAndBookings();
+    }
+    
     const ridesCol = collection(db, 'rides');
     let q = query(ridesCol);
 
@@ -87,18 +130,21 @@ export const createBooking = async (
                 throw new Error("Ride not found!");
             }
 
-            const ride = rideDoc.data() as Ride;
+            const rideData = rideDoc.data();
             
+            // Ensure rideData.seats exists and is an array
+            const currentSeats: Seat[] = rideData.seats || [];
+
             // Check seat availability
             bookingData.seats.forEach(seatNumber => {
-                const seat = ride.seats.find(s => s.number === seatNumber);
+                const seat = currentSeats.find(s => s.number === seatNumber);
                 if (!seat || seat.status !== 'available') {
                     throw new Error(`Seat ${seatNumber} is no longer available.`);
                 }
             });
 
             // Update seats
-            const newSeats = ride.seats.map(seat => 
+            const newSeats = currentSeats.map(seat => 
                 bookingData.seats.includes(seat.number) 
                     ? { ...seat, status: 'booked' } 
                     : seat
@@ -112,7 +158,9 @@ export const createBooking = async (
                 ...bookingData,
                 bookingTime: Timestamp.now(),
             };
-            transaction.set(doc(bookingsCol), newBookingData);
+            // Use addDoc within the transaction by getting the collection ref
+            const newBookingRef = doc(collection(db, "bookings"));
+            transaction.set(newBookingRef, newBookingData);
         });
 
          const newBooking: Booking = {
