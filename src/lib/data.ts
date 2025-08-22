@@ -167,7 +167,7 @@ export const getBookings = async (): Promise<Booking[]> => {
             return {
                 id: bookingDoc.id,
                 ...bookingData,
-                bookingTime: (bookingData.bookingTime as Timestamp).toDate(),
+                bookingTime: (bookingData.bookingTime as Timestamp).toDate().toISOString(),
                 rideDetails: rideDetails,
             } as Booking;
         })

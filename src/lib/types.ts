@@ -28,7 +28,7 @@ export type Booking = {
   rideId: string;
   userId: string;
   seats: number[]; // array of seat numbers
-  bookingTime: Date | Timestamp;
+  bookingTime: Date | Timestamp | string;
   passengerName: string;
   passengerPhone: string;
   rideDetails?: Ride;

@@ -38,8 +38,10 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
+    const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
+        setIsClient(true);
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const profile = await getUserProfile(user.uid);
@@ -60,7 +62,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         return bookings.filter(booking => {
             if (!booking.rideDetails) return false;
             const rideDate = new Date(booking.rideDetails.date);
-            // Adjust for timezone issues by comparing just the date part
+            
             const dateMatch = !dateFilter || format(rideDate, 'yyyy-MM-dd') === format(dateFilter, 'yyyy-MM-dd');
             const statusMatch = statusFilter === 'all' || booking.status === statusFilter;
             return dateMatch && statusMatch;
@@ -85,7 +87,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         
         filteredBookings.forEach(booking => {
             if (!booking.rideDetails) return;
-            const bookingTime = booking.bookingTime instanceof Timestamp ? booking.bookingTime.toDate() : booking.bookingTime;
+            const bookingTime = booking.bookingTime instanceof Timestamp ? booking.bookingTime.toDate() : new Date(booking.bookingTime);
             const row = [
                 booking.id,
                 booking.rideId,
@@ -118,9 +120,15 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         }
     };
 
-    const formatBookingTime = (time: Date | Timestamp) => {
-        const date = time instanceof Timestamp ? time.toDate() : time;
+    const formatBookingTime = (time: Date | Timestamp | string) => {
+        if (!isClient) return '...';
+        const date = time instanceof Timestamp ? time.toDate() : new Date(time);
         return format(date, "PPpp");
+    }
+    
+    const formatRideDate = (dateString: string) => {
+        if (!isClient) return '...';
+        return format(new Date(dateString), "EEE, MMM d");
     }
 
     const getStatusBadgeVariant = (status: Booking['status']) => {
@@ -205,7 +213,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                         )}
                                          {booking.rideDetails && (
                                             <div className="text-sm text-muted-foreground">
-                                                {format(new Date(booking.rideDetails.date), "EEE, MMM d")} at {booking.rideDetails.departureTime}
+                                                {formatRideDate(booking.rideDetails.date)} at {booking.rideDetails.departureTime}
                                             </div>
                                         )}
                                         <div className="text-xs text-muted-foreground mt-2">Seats: {booking.seats.join(', ')}</div>
