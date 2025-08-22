@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import type { User } from '@/lib/types';
+import { CheckCircle2, XCircle } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -76,9 +77,12 @@ export function SignUpForm() {
       password: '',
       confirmPassword: '',
     },
+    mode: 'onTouched'
   });
 
   const password = form.watch('password');
+  const confirmPassword = form.watch('confirmPassword');
+  const { errors } = form.formState;
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     // Mock signup
@@ -160,9 +164,18 @@ export function SignUpForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Confirm Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
+                <div className="relative">
+                    <FormControl>
+                        <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    {confirmPassword && (
+                        password === confirmPassword && !errors.confirmPassword ? (
+                            <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
+                        ) : (
+                            <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-destructive" />
+                        )
+                    )}
+                </div>
               <FormMessage />
             </FormItem>
           )}
