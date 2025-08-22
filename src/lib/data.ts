@@ -2,7 +2,7 @@
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat } from './types';
-import { format, startOfDay, parse, endOfDay } from 'date-fns';
+import { format, startOfDay, parse, endOfDay, isToday, parseISO } from 'date-fns';
 
 const initialSeats: Seat[] = Array.from({ length: 9 }, (_, i) => ({
     number: i + 1,
@@ -93,34 +93,25 @@ export const getRides = async (
     
     const ridesCol = collection(db, 'rides');
     let q = query(ridesCol);
-    
-    const hasFilters = (filters.from && filters.from !== 'all') || (filters.to && filters.to !== 'all') || filters.date;
 
-    if (hasFilters) {
-        if (filters.date) {
-            const filterDateStart = startOfDay(new Date(filters.date));
-            const filterDateEnd = endOfDay(new Date(filters.date));
-            q = query(q, where('date', '>=', Timestamp.fromDate(filterDateStart)), where('date', '<=', Timestamp.fromDate(filterDateEnd)));
-        } else {
-             q = query(q, where('date', '>=', Timestamp.fromDate(startOfDay(new Date()))));
-        }
+    const startOfToday = startOfDay(new Date());
 
-        if (filters.from && filters.from !== 'all') {
-            q = query(q, where('from', '==', filters.from));
-        }
-        if (filters.to && filters.to !== 'all') {
-            q = query(q, where('to', '==', filters.to));
-        }
-        q = query(q, orderBy('date'), orderBy('departureTime'));
-
+    if (filters.date) {
+        const filterDateStart = startOfDay(parseISO(filters.date));
+        const filterDateEnd = endOfDay(parseISO(filters.date));
+        q = query(q, where('date', '>=', Timestamp.fromDate(filterDateStart)), where('date', '<=', Timestamp.fromDate(filterDateEnd)));
     } else {
-        // Default query: no filters, just get upcoming rides
-        q = query(q, 
-            where('date', '>=', Timestamp.fromDate(startOfDay(new Date()))),
-            orderBy('date'), 
-            orderBy('departureTime')
-        );
+         q = query(q, where('date', '>=', Timestamp.fromDate(startOfToday)));
     }
+
+    if (filters.from && filters.from !== 'all') {
+        q = query(q, where('from', '==', filters.from));
+    }
+    if (filters.to && filters.to !== 'all') {
+        q = query(q, where('to', '==', filters.to));
+    }
+    
+    q = query(q, orderBy('date'), orderBy('departureTime'));
     
     const rideSnapshot = await getDocs(q);
     const rideList = rideSnapshot.docs.map(doc => {
@@ -131,6 +122,25 @@ export const getRides = async (
             date: format((data.date as Timestamp).toDate(), 'yyyy-MM-dd'),
         } as Ride;
     });
+
+    // Filter out rides that have already departed today
+    const now = new Date();
+    const isFilteringForToday = !filters.date || isToday(parseISO(filters.date));
+
+    if (isFilteringForToday) {
+        return rideList.filter(ride => {
+            const rideDate = parseISO(ride.date);
+            if (!isToday(rideDate)) {
+                return true; // Keep all future-dated rides
+            }
+            // It's a ride for today, so check the time
+            const departureDateTime = parse(ride.departureTime, 'hh:mm a', new Date());
+            // We only need time, so set date part to today for comparison
+            departureDateTime.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
+
+            return departureDateTime > now;
+        });
+    }
 
     return rideList;
 };
