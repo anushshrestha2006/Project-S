@@ -68,29 +68,32 @@ export const getRides = async (
     await seedDailyRides();
     
     const ridesCol = collection(db, 'rides');
-    let q = query(ridesCol);
-
-    const queryConstraints = [];
+    
+    // Base query constraints
+    const queryConstraints = [
+      orderBy('date'),
+      orderBy('departureTime')
+    ];
 
     if (filters.date) {
         const filterDateStart = startOfDay(new Date(filters.date));
         const filterDateEnd = new Date(filterDateStart);
         filterDateEnd.setDate(filterDateEnd.getDate() + 1);
-        queryConstraints.push(where('date', '>=', Timestamp.fromDate(filterDateStart)));
-        queryConstraints.push(where('date', '<', Timestamp.fromDate(filterDateEnd)));
+        queryConstraints.unshift(where('date', '<', Timestamp.fromDate(filterDateEnd)));
+        queryConstraints.unshift(where('date', '>=', Timestamp.fromDate(filterDateStart)));
     } else {
         // Default to showing rides from today onwards
-        queryConstraints.push(where('date', '>=', Timestamp.fromDate(startOfDay(new Date()))));
+        queryConstraints.unshift(where('date', '>=', Timestamp.fromDate(startOfDay(new Date()))));
     }
     
     if (filters.from && filters.from !== 'all') {
-        queryConstraints.push(where('from', '==', filters.from));
+        queryConstraints.unshift(where('from', '==', filters.from));
     }
     if (filters.to && filters.to !== 'all') {
-        queryConstraints.push(where('to', '==', filters.to));
+        queryConstraints.unshift(where('to', '==', filters.to));
     }
 
-    q = query(ridesCol, ...queryConstraints, orderBy('date'), orderBy('departureTime'));
+    const q = query(ridesCol, ...queryConstraints);
 
     const rideSnapshot = await getDocs(q);
     const rideList = rideSnapshot.docs.map(doc => {
