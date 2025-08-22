@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useActionState } from 'react';
-import type { Ride, User, Seat as SeatType } from '@/lib/types';
+import type { Ride, User, Seat as SeatType, PaymentDetails } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Armchair } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ import { processBooking, type BookingState } from '@/lib/actions';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { PaymentDialog } from './PaymentDialog';
+import { getPaymentDetails } from '@/lib/data';
 
 interface SeatProps {
   seat: SeatType;
@@ -71,6 +72,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
   const [passengerInfo, setPassengerInfo] = useState({ name: '', phone: '' });
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [formErrors, setFormErrors] = useState<{name?: string, phone?: string}>({});
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   
   const { toast } = useToast();
   const router = useRouter();
@@ -82,6 +84,12 @@ export function SeatSelection({ ride }: { ride: Ride }) {
       setUser(parsedUser);
       setPassengerInfo({ name: parsedUser.name || '', phone: parsedUser.phoneNumber || '' });
     }
+    
+    async function fetchPaymentDetails() {
+        const details = await getPaymentDetails();
+        setPaymentDetails(details);
+    }
+    fetchPaymentDetails();
   }, []);
 
   const handleSelectSeat = (seatNumber: number) => {
@@ -250,8 +258,8 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                         </div>
 
                         {selectedSeats.length > 0 ? (
-                            <Button onClick={handleProceedToPayment} className="w-full text-lg py-6">
-                                Proceed to Payment
+                            <Button onClick={handleProceedToPayment} className="w-full text-lg py-6" disabled={!paymentDetails}>
+                                {paymentDetails ? 'Proceed to Payment' : 'Loading Payment Options...'}
                             </Button>
                         ) : (
                              <Button disabled className="w-full text-lg py-6">Select a seat to book</Button>
@@ -263,7 +271,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
             </Card>
         </div>
     </div>
-    {user && (
+    {user && paymentDetails && (
          <PaymentDialog
             isOpen={isPaymentDialogOpen}
             setIsOpen={setPaymentDialogOpen}
@@ -275,6 +283,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                 passengerPhone: passengerInfo.phone,
                 totalPrice: totalPrice,
             }}
+            paymentDetails={paymentDetails}
         />
     )}
    

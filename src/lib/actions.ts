@@ -2,11 +2,11 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db } from './firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { doc, updateDoc, collection } from 'firebase/firestore';
 import type { User } from './types';
 
@@ -153,5 +153,49 @@ export async function updateUserRole(userId: string, newRole: 'user' | 'admin'):
         console.error('Error updating user role:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
         return { success: false, message: `Failed to update user role: ${errorMessage}` };
+    }
+}
+
+const QrCodeFormSchema = z.object({
+    paymentMethod: z.enum(['esewa', 'khalti', 'imepay']),
+    qrCode: z
+        .instanceof(File)
+        .refine((file) => file.size > 0, "QR code image is required.")
+        .refine((file) => file.size < 4 * 1024 * 1024, "Image must be less than 4MB.")
+        .refine((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type), "Only .jpg, .png, and .webp formats are supported."),
+});
+
+export async function uploadPaymentQr(prevState: any, formData: FormData): Promise<{success: boolean, message: string}> {
+    const validatedFields = QrCodeFormSchema.safeParse({
+        paymentMethod: formData.get('paymentMethod'),
+        qrCode: formData.get('qrCode'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: validatedFields.error.flatten().fieldErrors.qrCode?.[0] ?? "Invalid input."
+        };
+    }
+    
+    const { paymentMethod, qrCode } = validatedFields.data;
+    const storagePath = `payment_qrs/${paymentMethod}.${qrCode.type.split('/')[1]}`;
+    const storageRef = ref(storage, storagePath);
+
+    try {
+        const arrayBuffer = await qrCode.arrayBuffer();
+        await uploadBytes(storageRef, arrayBuffer, { contentType: qrCode.type });
+        const downloadURL = await getDownloadURL(storageRef);
+
+        await setPaymentQrUrl(paymentMethod, downloadURL);
+        
+        revalidatePath('/admin/settings');
+        revalidatePath('/booking/*');
+
+        return { success: true, message: `${paymentMethod.toUpperCase()} QR code updated successfully.` };
+    } catch (error) {
+        console.error("QR Upload Error:", error);
+        const errorMessage = (error instanceof Error) ? error.message : "An unknown error occurred.";
+        return { success: false, message: `Upload failed: ${errorMessage}` };
     }
 }

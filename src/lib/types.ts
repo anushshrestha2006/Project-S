@@ -1,4 +1,5 @@
 
+
 import type { Timestamp } from 'firebase/firestore';
 
 export type SeatStatus = 'available' | 'booked' | 'locked';
@@ -45,4 +46,12 @@ export type User = {
   role: 'user' | 'admin';
   bookings?: Pick<Booking, 'rideId' | 'seats'>[];
   photoURL?: string;
+};
+
+export type PaymentMethod = 'esewa' | 'khalti' | 'imepay';
+
+export type PaymentDetails = {
+    [key in PaymentMethod]: {
+        qrUrl: string;
+    }
 };

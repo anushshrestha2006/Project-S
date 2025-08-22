@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket, Users } from 'lucide-react';
+import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket, Users, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { User } from '@/lib/types';
 import {
@@ -110,12 +110,20 @@ export default function Header() {
                         </DropdownMenuItem>
                       </Link>
                        {user.email === 'anushshrestha8683@gmail.com' && (
-                          <Link href="/admin/users">
-                            <DropdownMenuItem>
-                                <Users className="mr-2 h-4 w-4" />
-                                User Management
-                            </DropdownMenuItem>
-                          </Link>
+                          <>
+                            <Link href="/admin/users">
+                              <DropdownMenuItem>
+                                  <Users className="mr-2 h-4 w-4" />
+                                  User Management
+                              </DropdownMenuItem>
+                            </Link>
+                             <Link href="/admin/settings">
+                              <DropdownMenuItem>
+                                  <Settings className="mr-2 h-4 w-4" />
+                                  Payment Settings
+                              </DropdownMenuItem>
+                            </Link>
+                          </>
                        )}
                     </>
                   )}

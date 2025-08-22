@@ -2,7 +2,7 @@
 
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc, DocumentData, QuerySnapshot } from 'firebase/firestore';
-import type { Ride, Booking, User, Seat, SeatStatus } from './types';
+import type { Ride, Booking, User, Seat, SeatStatus, PaymentDetails } from './types';
 import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
 const initialSeatsSumo: Seat[] = Array.from({ length: 9 }, (_, i) => ({
@@ -354,4 +354,28 @@ export async function deleteAllDocuments(snapshot: QuerySnapshot<DocumentData>) 
         batch.delete(doc.ref);
     });
     await batch.commit();
+}
+
+
+export async function getPaymentDetails(): Promise<PaymentDetails> {
+    const docRef = doc(db, 'config', 'paymentDetails');
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        return docSnap.data() as PaymentDetails;
+    } else {
+        // Return default/empty values if not set
+        return {
+            esewa: { qrUrl: '' },
+            khalti: { qrUrl: '' },
+            imepay: { qrUrl: '' },
+        };
+    }
+}
+
+export async function setPaymentQrUrl(paymentMethod: 'esewa' | 'khalti' | 'imepay', url: string): Promise<void> {
+    const docRef = doc(db, 'config', 'paymentDetails');
+    await setDoc(docRef, {
+        [paymentMethod]: { qrUrl: url }
+    }, { merge: true });
 }

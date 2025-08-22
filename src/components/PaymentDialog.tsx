@@ -19,6 +19,8 @@ import { useFormStatus } from 'react-dom';
 import { processBooking, type BookingState } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import type { PaymentDetails, PaymentMethod } from '@/lib/types';
+import { Skeleton } from './ui/skeleton';
 
 interface PaymentDialogProps {
   isOpen: boolean;
@@ -31,6 +33,7 @@ interface PaymentDialogProps {
     passengerPhone: string;
     totalPrice: number;
   };
+  paymentDetails: PaymentDetails;
 }
 
 function SubmitButton() {
@@ -42,11 +45,26 @@ function SubmitButton() {
     )
 }
 
-export function PaymentDialog({ isOpen, setIsOpen, bookingDetails }: PaymentDialogProps) {
+function QrCodeDisplay({ qrUrl, altText }: { qrUrl: string, altText: string }) {
+    return (
+        <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center p-4">
+           {qrUrl ? (
+                <Image data-ai-hint="QR code" src={qrUrl} width={300} height={300} alt={altText} className="object-contain" />
+            ) : (
+                <div className="text-center text-muted-foreground">
+                    <p>QR Code not available.</p>
+                    <p className="text-xs">Admin needs to upload it.</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export function PaymentDialog({ isOpen, setIsOpen, bookingDetails, paymentDetails }: PaymentDialogProps) {
   const { toast } = useToast();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const [activeTab, setActiveTab] = useState('esewa');
+  const [activeTab, setActiveTab] = useState<PaymentMethod>('esewa');
   
   const initialState: BookingState = { message: null, errors: {} };
   const [state, dispatch] = useActionState(processBooking, initialState);
@@ -91,26 +109,20 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails }: PaymentDial
             <input type="hidden" name="passengerPhone" value={bookingDetails.passengerPhone} />
             <input type="hidden" name="paymentMethod" value={activeTab} />
 
-            <Tabs defaultValue="esewa" className="w-full" onValueChange={setActiveTab}>
+            <Tabs defaultValue="esewa" className="w-full" onValueChange={(val) => setActiveTab(val as PaymentMethod)}>
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="esewa">eSewa</TabsTrigger>
                     <TabsTrigger value="khalti">Khalti</TabsTrigger>
                     <TabsTrigger value="imepay">IMEPay</TabsTrigger>
                 </TabsList>
                 <TabsContent value="esewa">
-                    <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center">
-                        <Image data-ai-hint="QR code" src="https://placehold.co/300x300.png" width={300} height={300} alt="eSewa QR Code" />
-                    </div>
+                    <QrCodeDisplay qrUrl={paymentDetails.esewa.qrUrl} altText="eSewa QR Code" />
                 </TabsContent>
                 <TabsContent value="khalti">
-                    <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center">
-                         <Image data-ai-hint="QR code" src="https://placehold.co/300x300.png" width={300} height={300} alt="Khalti QR Code" />
-                    </div>
+                     <QrCodeDisplay qrUrl={paymentDetails.khalti.qrUrl} altText="Khalti QR Code" />
                 </TabsContent>
                 <TabsContent value="imepay">
-                     <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center">
-                         <Image data-ai-hint="QR code" src="https://placehold.co/300x300.png" width={300} height={300} alt="IMEPay QR Code" />
-                    </div>
+                     <QrCodeDisplay qrUrl={paymentDetails.imepay.qrUrl} altText="IMEPay QR Code" />
                 </TabsContent>
             </Tabs>
             
