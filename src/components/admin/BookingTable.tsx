@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket } from "lucide-react";
+import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format, isSameDay } from "date-fns";
 import { auth } from "@/lib/firebase";
@@ -93,7 +93,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     }
 
     const handleExport = () => {
-        const headers = ["Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Transaction ID", "Ride From", "Ride To", "Ride Date", "Departure Time"];
+        const headers = ["Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Transaction ID", "Ride From", "Ride To", "Ride Date", "Departure Time", "Vehicle Type"];
         const csvRows = [headers.join(",")];
         
         filteredBookings.forEach(booking => {
@@ -113,6 +113,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 booking.rideDetails.to,
                 booking.rideDetails.date,
                 booking.rideDetails.departureTime,
+                booking.rideDetails.vehicleType,
             ];
             csvRows.push(row.join(","));
         });
@@ -239,8 +240,12 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                             </div>
                                         )}
                                          {booking.rideDetails && (
-                                            <div className="text-sm text-muted-foreground">
-                                                {formatRideDate(booking.rideDetails.date)} at {booking.rideDetails.departureTime}
+                                            <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                                <span>{formatRideDate(booking.rideDetails.date)} at {booking.rideDetails.departureTime}</span>
+                                                <Badge variant="outline" className="flex items-center gap-1">
+                                                    <Bus className="h-3 w-3" />
+                                                    {booking.rideDetails.vehicleType}
+                                                </Badge>
                                             </div>
                                         )}
                                         <div className="text-xs text-muted-foreground mt-2">Seats: {booking.seats.join(', ')}</div>
@@ -295,4 +300,5 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
             </div>
         </div>
     );
-}
+
+    

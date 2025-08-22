@@ -120,12 +120,17 @@ export async function updateBookingStatus(
 
 export async function clearAllBookings(): Promise<{ success: boolean; message: string }> {
     try {
+        // This is a very destructive action. In a real-world scenario, you might want to archive data
+        // instead of deleting it permanently. For this project, we'll proceed with deletion.
+
+        // Get all ride and booking documents
         const bookingsCollection = collection(db, 'bookings');
         const ridesCollection = collection(db, 'rides');
 
         const bookingsToDelete = await getAllCollectionDocuments(bookingsCollection);
         await deleteAllDocuments(bookingsToDelete);
         
+        // Ride states are stored in Firestore, so we need to clear them too to reset seats.
         const ridesToDelete = await getAllCollectionDocuments(ridesCollection);
         await deleteAllDocuments(ridesToDelete);
         
@@ -143,6 +148,8 @@ export async function clearAllBookings(): Promise<{ success: boolean; message: s
 
 export async function updateUserRole(userId: string, newRole: 'user' | 'admin'): Promise<{ success: boolean, message: string }> {
     try {
+        // In a real app, you might want additional checks to prevent a user from changing their own role
+        // or to ensure there's always at least one admin.
         const userRef = doc(db, 'users', userId);
         await updateDoc(userRef, { role: newRole });
         
@@ -198,10 +205,12 @@ export async function uploadPaymentQr(prevState: any, formData: FormData): Promi
     const storageRef = ref(storage, storagePath);
 
     try {
+        // Upload file to Firebase Storage
         const arrayBuffer = await qrCode.arrayBuffer();
         await uploadBytes(storageRef, arrayBuffer, { contentType: qrCode.type });
         const downloadURL = await getDownloadURL(storageRef);
 
+        // Save the URL in Firestore
         await setPaymentQrUrl(paymentMethod, downloadURL);
         
         revalidatePath('/admin/settings');
@@ -214,3 +223,5 @@ export async function uploadPaymentQr(prevState: any, formData: FormData): Promi
         return { success: false, message: `Upload failed: ${errorMessage}` };
     }
 }
+
+    
