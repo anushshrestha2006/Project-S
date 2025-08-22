@@ -22,8 +22,9 @@ export default function AdminUsersPage() {
                 const profile = await getUserProfile(firebaseUser.uid);
                 // Only the super-admin can access this page
                 if (profile?.email !== 'anushshrestha8683@gmail.com') {
-                    router.replace('/admin'); // Or wherever you want to redirect non-super-admins
+                    router.replace('/admin');
                 } else {
+                    // Always fetch the latest user list when the component mounts
                     const allUsers = await getAllUsers();
                     setUsers(allUsers);
                     setLoading(false);
@@ -59,7 +60,7 @@ export default function AdminUsersPage() {
                 <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">User Management</h1>
                 <p className="text-muted-foreground">View and manage user roles.</p>
             </div>
-            <Suspense fallback={<div>Loading users...</div>}>
+             <Suspense fallback={<div>Loading users...</div>}>
                 <UserTable initialUsers={users} />
             </Suspense>
         </div>
