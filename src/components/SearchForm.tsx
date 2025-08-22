@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Search, MapPin } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -19,28 +20,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
 
 export function SearchForm() {
+  const router = useRouter();
   const [from, setFrom] = useState<string | undefined>();
   const [to, setTo] = useState<string | undefined>();
   const [date, setDate] = useState<Date | undefined>();
-  const { toast } = useToast();
 
   const handleSearch = () => {
-    // This is a placeholder for the actual search logic.
-    // In a real app, you would use this information to filter rides.
-    toast({
-      title: 'Search Submitted',
-      description: `Searching for rides from ${from || 'any'} to ${to || 'any'} on ${date ? format(date, 'PPP') : 'any date'}.`,
-    });
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    if (date) params.append('date', format(date, 'yyyy-MM-dd'));
+    
+    router.push(`/?${params.toString()}`);
   };
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
         <div className="relative md:col-span-1">
              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
-             <Select onValuechange={setFrom} value={from}>
+             <Select onValueChange={setFrom} value={from}>
                 <SelectTrigger className="pl-10">
                     <SelectValue placeholder="From" />
                 </SelectTrigger>
@@ -81,6 +81,7 @@ export function SearchForm() {
             selected={date}
             onSelect={setDate}
             initialFocus
+            disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
           />
         </PopoverContent>
       </Popover>

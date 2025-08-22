@@ -12,6 +12,7 @@ let rides: Ride[] = [
     totalSeats: 12,
     bookedSeats: [3, 4, 8],
     price: 800,
+    date: '2024-08-01',
   },
   {
     id: 'KTM1',
@@ -23,6 +24,7 @@ let rides: Ride[] = [
     totalSeats: 15,
     bookedSeats: [1, 2, 5, 10, 11],
     price: 900,
+    date: '2024-08-01',
   },
   {
     id: 'BKT2',
@@ -34,6 +36,7 @@ let rides: Ride[] = [
     totalSeats: 7,
     bookedSeats: [1, 5],
     price: 1200,
+    date: '2024-08-02',
   },
   {
     id: 'KTM2',
@@ -45,6 +48,19 @@ let rides: Ride[] = [
     totalSeats: 12,
     bookedSeats: [2, 6, 7, 12],
     price: 850,
+    date: '2024-08-02',
+  },
+   {
+    id: 'BKT3',
+    from: 'Birgunj',
+    to: 'Kathmandu',
+    departureTime: '07:30 AM',
+    arrivalTime: '03:30 PM',
+    vehicleType: 'Sumo',
+    totalSeats: 12,
+    bookedSeats: [],
+    price: 800,
+    date: '2024-08-02',
   },
 ];
 
@@ -77,8 +93,22 @@ let users: User[] = [
 ]
 
 // Simulate API calls
-export const getRides = async (): Promise<Ride[]> => {
-  return new Promise((resolve) => setTimeout(() => resolve(rides), 500));
+export const getRides = async (filters?: { from?: string; to?: string; date?: string }): Promise<Ride[]> => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            if (!filters || (!filters.from && !filters.to && !filters.date)) {
+                return resolve(rides);
+            }
+
+            const filteredRides = rides.filter(ride => {
+                const fromMatch = !filters.from || ride.from === filters.from;
+                const toMatch = !filters.to || ride.to === filters.to;
+                const dateMatch = !filters.date || ride.date === filters.date;
+                return fromMatch && toMatch && dateMatch;
+            });
+            resolve(filteredRides);
+        }, 500);
+    });
 };
 
 export const getRideById = async (id: string): Promise<Ride | undefined> => {

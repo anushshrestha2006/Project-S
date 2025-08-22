@@ -1,11 +1,19 @@
 import { RideCard } from '@/components/RideCard';
 import { getRides } from '@/lib/data';
-import { Bus, Search } from 'lucide-react';
+import { Bus } from 'lucide-react';
 import { SearchForm } from '@/components/SearchForm';
 import { Card, CardContent } from '@/components/ui/card';
 
-export default async function Home() {
-  const rides = await getRides();
+export default async function Home({
+  searchParams,
+}: {
+  searchParams?: {
+    from?: string;
+    to?: string;
+    date?: string;
+  };
+}) {
+  const rides = await getRides(searchParams);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -32,7 +40,7 @@ export default async function Home() {
       {rides.length === 0 && (
         <div className="text-center py-16 text-muted-foreground flex flex-col items-center">
             <Bus className="w-16 h-16 mb-4"/>
-            <p>No rides available at the moment. Please check back later.</p>
+            <p>No rides found for the selected criteria. Please try a different search.</p>
         </div>
       )}
     </div>

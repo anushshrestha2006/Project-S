@@ -8,6 +8,7 @@ export type Ride = {
   totalSeats: number;
   bookedSeats: number[]; // Array of seat numbers that are booked
   price: number;
+  date: string; // YYYY-MM-DD
 };
 
 export type Booking = {
