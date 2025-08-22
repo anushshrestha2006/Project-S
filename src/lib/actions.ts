@@ -2,7 +2,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db } from './firebase';
@@ -155,6 +155,21 @@ export async function updateUserRole(userId: string, newRole: 'user' | 'admin'):
         return { success: false, message: `Failed to update user role: ${errorMessage}` };
     }
 }
+
+export async function deleteUser(userId: string): Promise<{ success: boolean, message: string }> {
+    // This action only deletes the Firestore user document.
+    // Deleting from Firebase Auth requires Admin SDK, typically on a server/cloud function.
+    try {
+        await deleteUserFromFirestore(userId);
+        revalidatePath('/admin/users');
+        return { success: true, message: 'User data has been deleted from the application.' };
+    } catch (error) {
+         console.error('Error deleting user:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+        return { success: false, message: `Failed to delete user: ${errorMessage}` };
+    }
+}
+
 
 const QrCodeFormSchema = z.object({
     paymentMethod: z.enum(['esewa', 'khalti', 'imepay']),

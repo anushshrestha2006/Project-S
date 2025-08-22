@@ -1,7 +1,7 @@
 
 
 import { db } from './firebase';
-import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc, DocumentData, QuerySnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc, DocumentData, QuerySnapshot, deleteDoc } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat, SeatStatus, PaymentDetails } from './types';
 import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
@@ -354,6 +354,11 @@ export async function deleteAllDocuments(snapshot: QuerySnapshot<DocumentData>) 
         batch.delete(doc.ref);
     });
     await batch.commit();
+}
+
+export async function deleteUserFromFirestore(userId: string): Promise<void> {
+    const userDocRef = doc(db, 'users', userId);
+    await deleteDoc(userDocRef);
 }
 
 
