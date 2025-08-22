@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Clock, Users, Bus, Armchair } from 'lucide-react';
+import { ArrowRight, Clock, Users, Bus, Armchair, Calendar } from 'lucide-react';
 import type { Ride } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -23,7 +23,8 @@ export function RideCard({ ride }: RideCardProps) {
                 <CardTitle className="text-xl font-headline flex items-center">
                     {ride.from} <ArrowRight className="mx-2 h-5 w-5" /> {ride.to}
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="flex items-center pt-1">
+                    <Calendar className="mr-2 h-4 w-4" />
                     {rideDate}
                 </CardDescription>
             </div>
