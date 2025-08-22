@@ -5,6 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -73,30 +77,48 @@ export function SignUpForm() {
     mode: 'onTouched'
   });
 
-  const { watch, formState: { errors } } = form;
+  const { watch, formState: { errors, isSubmitting } } = form;
   const password = watch('password');
   const confirmPassword = watch('confirmPassword');
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // This is mock signup. Replace with Firebase Auth.
-    const newUser: User = {
-        id: `user-${Date.now()}`,
-        name: values.name,
-        email: values.email,
-        phoneNumber: values.phoneNumber,
-        role: 'user',
-    }
-    // In a real app, you would not store the password here.
-    // Also, you would check if user already exists.
-    
-    localStorage.setItem('sumo-sewa-user', JSON.stringify(newUser));
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+        const firebaseUser = userCredential.user;
 
-    toast({
-      title: 'Account Created Successfully!',
-      description: "Welcome to Sumo Sewa. You are now logged in.",
-    });
-    router.push('/');
-    router.refresh();
+        await updateProfile(firebaseUser, { displayName: values.name });
+
+        const newUser: Omit<User, 'id'> = {
+            name: values.name,
+            email: values.email,
+            phoneNumber: values.phoneNumber,
+            role: 'user',
+            bookings: []
+        };
+
+        // Store user info in Firestore
+        await setDoc(doc(db, "users", firebaseUser.uid), newUser);
+        
+        const loggedInUser: User = { ...newUser, id: firebaseUser.uid };
+        localStorage.setItem('sumo-sewa-user', JSON.stringify(loggedInUser));
+
+        toast({
+            title: 'Account Created Successfully!',
+            description: "Welcome to Sumo Sewa. You are now logged in.",
+        });
+        router.push('/');
+        router.refresh();
+
+    } catch (error: any) {
+        console.error("Signup error:", error);
+        toast({
+            variant: "destructive",
+            title: "Sign Up Failed",
+            description: error.code === 'auth/email-already-in-use' 
+                ? 'This email is already registered.' 
+                : error.message || 'An unexpected error occurred.',
+        });
+    }
   }
 
   return (
@@ -190,8 +212,8 @@ export function SignUpForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full text-base py-6">
-          Create Account
+        <Button type="submit" className="w-full text-base py-6" disabled={isSubmitting}>
+          {isSubmitting ? 'Creating Account...' : 'Create Account'}
         </Button>
       </form>
     </Form>

@@ -15,24 +15,53 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { getUserProfile } from '@/lib/data';
 
 export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    // In a real app, this would come from a proper auth context provider
-    const storedUser = localStorage.getItem('sumo-sewa-user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in, see docs for a list of available properties
+        // https://firebase.google.com/docs/reference/js/firebase.User
+        const profile = await getUserProfile(firebaseUser.uid);
+        if (profile) {
+            setUser(profile);
+            localStorage.setItem('sumo-sewa-user', JSON.stringify(profile));
+        } else {
+             // This case might happen if the Firestore doc isn't created yet
+             // or if there's a lag. We can handle it gracefully.
+             const tempUser: User = {
+                id: firebaseUser.uid,
+                name: firebaseUser.displayName || "User",
+                email: firebaseUser.email || "",
+                role: 'user'
+             }
+             setUser(tempUser);
+             localStorage.setItem('sumo-sewa-user', JSON.stringify(tempUser));
+        }
+      } else {
+        // User is signed out
+        setUser(null);
+        localStorage.removeItem('sumo-sewa-user');
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('sumo-sewa-user');
-    setUser(null);
-    router.push('/');
-    router.refresh();
+  const handleLogout = async () => {
+    try {
+        await signOut(auth);
+        router.push('/');
+        router.refresh();
+    } catch (error) {
+        console.error("Error signing out: ", error);
+    }
   };
 
   const getInitials = (name: string) => {

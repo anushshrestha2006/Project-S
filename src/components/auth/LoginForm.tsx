@@ -4,6 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -36,39 +40,43 @@ export function LoginForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // This is mock authentication. Replace with Firebase Auth.
-    let user: User | null = null;
-    if (values.email === 'admin@sumosewa.com' && values.password === 'adminpass') {
-       user = {
-        id: 'admin-user-id',
-        name: 'Admin User',
-        email: 'admin@sumosewa.com',
-        role: 'admin',
-      };
-    } else if (values.password === 'password123') { // Mock user login
-        user = {
-            id: 'mock-user-id',
-            name: 'Test User',
-            email: values.email,
-            role: 'user',
-            phoneNumber: '9800000000'
-        }
-    }
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const firebaseUser = userCredential.user;
 
-    if (user) {
-      localStorage.setItem('sumo-sewa-user', JSON.stringify(user));
-      toast({
-        title: 'Login Successful',
-        description: `Welcome back, ${user.name}!`,
-      });
-      router.push(user.role === 'admin' ? '/admin' : '/');
-      router.refresh();
-    } else {
+      // Get user role from Firestore
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as User;
+         const user: User = {
+          id: firebaseUser.uid,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role || 'user',
+          phoneNumber: userData.phoneNumber,
+        };
+        
+        localStorage.setItem('sumo-sewa-user', JSON.stringify(user));
+        toast({
+          title: 'Login Successful',
+          description: `Welcome back, ${user.name}!`,
+        });
+
+        router.push(user.role === 'admin' ? '/admin' : '/');
+        router.refresh();
+      } else {
+         throw new Error("User data not found in Firestore.");
+      }
+
+    } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: 'Invalid email or password. Please try again.',
+        description: error.message || 'Invalid email or password. Please try again.',
       });
     }
   }
@@ -108,8 +116,8 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full text-base py-6">
-          Log In
+        <Button type="submit" className="w-full text-base py-6" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? 'Logging In...' : 'Log In'}
         </Button>
       </form>
     </Form>

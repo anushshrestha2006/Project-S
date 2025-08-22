@@ -15,6 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Download, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { getUserProfile } from "@/lib/data";
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
     const [bookings, setBookings] = useState(initialBookings);
@@ -22,15 +25,17 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     const router = useRouter();
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('sumo-sewa-user');
-        if (storedUser) {
-            const user: User = JSON.parse(storedUser);
-            if (user.role !== 'admin') {
-                router.replace('/');
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const profile = await getUserProfile(user.uid);
+                if (profile?.role !== 'admin') {
+                    router.replace('/');
+                }
+            } else {
+                router.replace('/login');
             }
-        } else {
-             router.replace('/login');
-        }
+        });
+        return () => unsubscribe();
     }, [router]);
 
     const filteredBookings = useMemo(() => {
@@ -104,7 +109,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                         {filteredBookings.length > 0 ? (
                             filteredBookings.map(booking => (
                                 <TableRow key={booking.id}>
-                                    <TableCell className="font-medium">{booking.id}</TableCell>
+                                    <TableCell className="font-medium">{booking.id.substring(0, 7)}...</TableCell>
                                     <TableCell>{booking.rideId}</TableCell>
                                     <TableCell>{booking.passengerName}</TableCell>
                                     <TableCell>{booking.passengerPhone}</TableCell>
