@@ -60,7 +60,8 @@ export function SeatSelection({ ride }: { ride: Ride }) {
   useEffect(() => {
     const storedUser = localStorage.getItem('sumo-sewa-user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
     }
   }, []);
 
@@ -164,7 +165,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="passengerPhone">Phone Number</Label>
-                            <Input id="passengerPhone" name="passengerPhone" placeholder="98XXXXXXXX" required />
+                            <Input id="passengerPhone" name="passengerPhone" placeholder="98XXXXXXXX" defaultValue={user?.phoneNumber} required />
                              {state.errors?.passengerPhone && <p className="text-xs text-destructive">{state.errors.passengerPhone[0]}</p>}
                         </div>
 
