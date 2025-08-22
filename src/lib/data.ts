@@ -2,7 +2,7 @@
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat } from './types';
-import { format, startOfDay, parse, endOfDay, isToday, parseISO } from 'date-fns';
+import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays } from 'date-fns';
 
 const initialSeats: Seat[] = Array.from({ length: 9 }, (_, i) => ({
     number: i + 1,
@@ -69,7 +69,7 @@ let ridesDB: Ride[] = [
         arrivalTime: '02:00 PM',
         price: 850,
         vehicleType: 'Sumo',
-        date: format(new Date(new Date().setDate(new Date().getDate() + 1)), 'yyyy-MM-dd'),
+        date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
         seats: JSON.parse(JSON.stringify(initialSeats)),
         totalSeats: 9,
     },
@@ -81,7 +81,7 @@ let ridesDB: Ride[] = [
         arrivalTime: '02:00 PM',
         price: 850,
         vehicleType: 'Sumo',
-        date: format(new Date(new Date().setDate(new Date().getDate() + 1)), 'yyyy-MM-dd'),
+        date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
         seats: JSON.parse(JSON.stringify(initialSeats)),
         totalSeats: 9,
     },
@@ -93,7 +93,7 @@ let ridesDB: Ride[] = [
         arrivalTime: '06:00 PM',
         price: 850,
         vehicleType: 'Sumo',
-        date: format(new Date(new Date().setDate(new Date().getDate() + 1)), 'yyyy-MM-dd'),
+        date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
         seats: JSON.parse(JSON.stringify(initialSeats)),
         totalSeats: 9,
     },
@@ -105,7 +105,32 @@ let ridesDB: Ride[] = [
         arrivalTime: '06:00 PM',
         price: 850,
         vehicleType: 'Sumo',
-        date: format(new Date(new Date().setDate(new Date().getDate() + 1)), 'yyyy-MM-dd'),
+        date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+        seats: JSON.parse(JSON.stringify(initialSeats)),
+        totalSeats: 9,
+    },
+     // Add some rides for 2 days from now for testing upcoming logic
+    {
+        id: '9',
+        from: 'Birgunj',
+        to: 'Kathmandu',
+        departureTime: '06:00 AM',
+        arrivalTime: '02:00 PM',
+        price: 850,
+        vehicleType: 'Sumo',
+        date: format(addDays(new Date(), 2), 'yyyy-MM-dd'),
+        seats: JSON.parse(JSON.stringify(initialSeats)),
+        totalSeats: 9,
+    },
+    {
+        id: '10',
+        from: 'Kathmandu',
+        to: 'Birgunj',
+        departureTime: '10:00 AM',
+        arrivalTime: '06:00 PM',
+        price: 850,
+        vehicleType: 'Sumo',
+        date: format(addDays(new Date(), 2), 'yyyy-MM-dd'),
         seats: JSON.parse(JSON.stringify(initialSeats)),
         totalSeats: 9,
     }
@@ -138,6 +163,7 @@ export const getRides = async (
     
     const now = getNepalTime();
     const todayStr = format(now, 'yyyy-MM-dd');
+    const tomorrowStr = format(addDays(now, 1), 'yyyy-MM-dd');
 
     // 2. Filter by date logic
     let finalRideList = availableRides.filter(ride => {
@@ -145,24 +171,26 @@ export const getRides = async (
         if (filters.date) {
             return ride.date === filters.date;
         }
-        // If no date is selected, show rides from today onwards.
-        return ride.date >= todayStr;
+        // If no date is selected, show rides for today AND tomorrow by default.
+        return ride.date === todayStr || ride.date === tomorrowStr;
     });
 
     // 3. Filter by time logic (Always apply for today's rides)
     finalRideList = finalRideList.filter(ride => {
+        const rideDate = parseISO(ride.date);
+        const rideDateStr = format(rideDate, 'yyyy-MM-dd');
+
         // If the ride is for a future date, always include it.
-        if (ride.date > todayStr) {
+        if (rideDateStr > todayStr) {
             return true;
         }
         // If the ride is for today, check if departure time has passed.
-        if (ride.date === todayStr) {
-            const rideDate = parseISO(ride.date);
+        if (rideDateStr === todayStr) {
             const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
             // Only include the ride if its departure time is in the future.
             return departureDateTime > now;
         }
-        // Exclude rides from past dates (this case is redundant due to step 2 but safe to have).
+        // Exclude rides from past dates
         return false;
     });
 
@@ -183,7 +211,17 @@ export const getRides = async (
 };
 
 export const getRideById = async (id: string): Promise<Ride | undefined> => {
-    return ridesDB.find(ride => ride.id === id);
+    // We add more rides to the DB to ensure upcoming rides are available
+    const allRides = [...ridesDB];
+    for (let i = 2; i <= 7; i++) {
+        ridesDB.forEach(ride => {
+            const futureRide = JSON.parse(JSON.stringify(ride));
+            futureRide.id = `${ride.id}-day${i}`;
+            futureRide.date = format(addDays(new Date(), i), 'yyyy-MM-dd');
+            allRides.push(futureRide);
+        });
+    }
+    return allRides.find(ride => ride.id === id);
 };
 
 export const getBookings = async (): Promise<Booking[]> => {
@@ -200,23 +238,44 @@ export const createBooking = async (
     const ride = ridesDB.find(r => r.id === bookingData.rideId);
 
     if (!ride) {
-        throw new Error("Ride not found!");
+        // Since we now generate future rides dynamically for getRideById,
+        // we might not have it in the base ridesDB. Let's check a generated future ride list.
+         const allRides: Ride[] = [];
+         for (let i = 0; i <= 7; i++) {
+            ridesDB.forEach(baseRide => {
+                const futureRide = JSON.parse(JSON.stringify(baseRide));
+                futureRide.id = i === 0 ? baseRide.id : `${baseRide.id}-day${i}`;
+                futureRide.date = format(addDays(new Date(), i), 'yyyy-MM-dd');
+                allRides.push(futureRide);
+            });
+        }
+        const futureRide = allRides.find(r => r.id === bookingData.rideId);
+        if(!futureRide) {
+            throw new Error("Ride not found!");
+        }
+         // This is a temporary booking on a dynamically created ride.
+        // It won't persist, but it will simulate the booking flow.
     }
 
-    // Check seat availability
-    bookingData.seats.forEach(seatNumber => {
-        const seat = ride.seats.find(s => s.number === seatNumber);
-        if (!seat || seat.status !== 'available') {
-            throw new Error(`Seat ${seatNumber} is no longer available.`);
-        }
-    });
 
-    // Update seats
-    ride.seats = ride.seats.map(seat => 
-        bookingData.seats.includes(seat.number) 
-            ? { ...seat, status: 'booked' } 
-            : seat
-    );
+    const rideToUpdate = ridesDB.find(r => r.id === bookingData.rideId);
+
+    if (rideToUpdate) {
+        // Check seat availability
+        bookingData.seats.forEach(seatNumber => {
+            const seat = rideToUpdate.seats.find(s => s.number === seatNumber);
+            if (!seat || seat.status !== 'available') {
+                throw new Error(`Seat ${seatNumber} is no longer available.`);
+            }
+        });
+
+        // Update seats
+        rideToUpdate.seats = rideToUpdate.seats.map(seat => 
+            bookingData.seats.includes(seat.number) 
+                ? { ...seat, status: 'booked' } 
+                : seat
+        );
+    }
     
     // In a real app, you would also save the booking record.
     // Here we'll just return a success-like object.
