@@ -159,15 +159,21 @@ export const getBookings = async (): Promise<Booking[]> => {
     const bookingsCollection = collection(db, 'bookings');
     const q = query(bookingsCollection, orderBy('bookingTime', 'desc'));
     const bookingsSnapshot = await getDocs(q);
-    
-    return bookingsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            ...data,
-            bookingTime: (data.bookingTime as Timestamp).toDate(),
-        } as Booking;
-    });
+
+    const bookingsWithRides = await Promise.all(
+        bookingsSnapshot.docs.map(async (bookingDoc) => {
+            const bookingData = bookingDoc.data();
+            const rideDetails = await getRideById(bookingData.rideId, true); // Include past rides
+            return {
+                id: bookingDoc.id,
+                ...bookingData,
+                bookingTime: (bookingData.bookingTime as Timestamp).toDate(),
+                rideDetails: rideDetails,
+            } as Booking;
+        })
+    );
+
+    return bookingsWithRides.filter(b => b.rideDetails);
 };
 
 export const getBookingsByUserId = async (userId: string): Promise<Booking[]> => {

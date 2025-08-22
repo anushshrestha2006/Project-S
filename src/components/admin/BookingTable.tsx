@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon } from "lucide-react";
+import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format, isSameDay } from "date-fns";
 import { auth } from "@/lib/firebase";
@@ -57,8 +57,10 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
 
     const filteredBookings = useMemo(() => {
         return bookings.filter(booking => {
-            const bookingDate = booking.bookingTime instanceof Timestamp ? booking.bookingTime.toDate() : booking.bookingTime;
-            const dateMatch = !dateFilter || isSameDay(bookingDate, dateFilter);
+            if (!booking.rideDetails) return false;
+            const rideDate = new Date(booking.rideDetails.date);
+            // Adjust for timezone issues by comparing just the date part
+            const dateMatch = !dateFilter || format(rideDate, 'yyyy-MM-dd') === format(dateFilter, 'yyyy-MM-dd');
             const statusMatch = statusFilter === 'all' || booking.status === statusFilter;
             return dateMatch && statusMatch;
         });
@@ -77,10 +79,11 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     }
 
     const handleExport = () => {
-        const headers = ["Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Transaction ID"];
+        const headers = ["Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Transaction ID", "Ride From", "Ride To", "Ride Date", "Departure Time"];
         const csvRows = [headers.join(",")];
         
         filteredBookings.forEach(booking => {
+            if (!booking.rideDetails) return;
             const bookingTime = booking.bookingTime instanceof Timestamp ? booking.bookingTime.toDate() : booking.bookingTime;
             const row = [
                 booking.id,
@@ -91,7 +94,11 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 format(bookingTime, "yyyy-MM-dd HH:mm"),
                 booking.status,
                 booking.paymentMethod || "",
-                booking.transactionId || ""
+                booking.transactionId || "",
+                booking.rideDetails.from,
+                booking.rideDetails.to,
+                booking.rideDetails.date,
+                booking.rideDetails.departureTime,
             ];
             csvRows.push(row.join(","));
         });
@@ -129,7 +136,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         <div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end">
                 <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="date">Filter by Booking Date</Label>
+                    <Label htmlFor="date">Filter by Ride Date</Label>
                     <Popover>
                         <PopoverTrigger asChild>
                         <Button
@@ -178,7 +185,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Booking Details</TableHead>
+                            <TableHead>Ride & Booking Details</TableHead>
                             <TableHead>Passenger</TableHead>
                             <TableHead>Payment</TableHead>
                             <TableHead>Status</TableHead>
@@ -190,10 +197,18 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                             filteredBookings.map(booking => (
                                 <TableRow key={booking.id}>
                                     <TableCell>
-                                        <div className="font-medium">Ride ID: {booking.rideId}</div>
-                                        <div className="text-xs text-muted-foreground">Booking ID: {booking.id.substring(0, 7)}...</div>
-                                        <div className="text-xs text-muted-foreground">Seats: {booking.seats.join(', ')}</div>
-                                        <div className="text-xs text-muted-foreground mt-1">{formatBookingTime(booking.bookingTime)}</div>
+                                        {booking.rideDetails && (
+                                            <div className="font-medium flex items-center">
+                                                {booking.rideDetails.from} <ArrowRight className="mx-1 h-4 w-4" /> {booking.rideDetails.to}
+                                            </div>
+                                        )}
+                                         {booking.rideDetails && (
+                                            <div className="text-sm text-muted-foreground">
+                                                {format(new Date(booking.rideDetails.date), "EEE, MMM d")} at {booking.rideDetails.departureTime}
+                                            </div>
+                                        )}
+                                        <div className="text-xs text-muted-foreground mt-2">Seats: {booking.seats.join(', ')}</div>
+                                        <div className="text-xs text-muted-foreground">Booked: {formatBookingTime(booking.bookingTime)}</div>
                                     </TableCell>
                                     <TableCell>
                                         <div>{booking.passengerName}</div>
