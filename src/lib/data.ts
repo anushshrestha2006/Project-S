@@ -72,23 +72,27 @@ export const getRides = async (
 ): Promise<Ride[]> => {
     return new Promise((resolve) => {
         setTimeout(() => {
+            let filteredRides = [...rides];
             const today = startOfDay(new Date());
-            
-            let filteredRides = rides.filter(ride => {
-                const rideDate = startOfDay(new Date(ride.date));
-                // Ensure ride is today or in the future
-                return isAfter(rideDate, today) || isEqual(rideDate, today);
-            });
 
+            // Handle date filtering first
+            if (filters.date) {
+                const filterDate = startOfDay(new Date(filters.date));
+                filteredRides = filteredRides.filter(ride => isEqual(startOfDay(new Date(ride.date)), filterDate));
+            } else {
+                // If no date is specified, only show upcoming rides (from today onwards)
+                filteredRides = filteredRides.filter(ride => {
+                    const rideDate = startOfDay(new Date(ride.date));
+                    return isEqual(rideDate, today) || isAfter(rideDate, today);
+                });
+            }
+            
+            // Handle other filters
             if (filters.from && filters.from !== 'all') {
                 filteredRides = filteredRides.filter(ride => ride.from === filters.from);
             }
             if (filters.to && filters.to !== 'all') {
                 filteredRides = filteredRides.filter(ride => ride.to === filters.to);
-            }
-            if (filters.date) {
-                const filterDate = startOfDay(new Date(filters.date));
-                filteredRides = filteredRides.filter(ride => isEqual(startOfDay(new Date(ride.date)), filterDate));
             }
 
             // Sort by date, then by departure time
