@@ -1,6 +1,8 @@
 import { RideCard } from '@/components/RideCard';
 import { getRides } from '@/lib/data';
-import { Bus } from 'lucide-react';
+import { Bus, Search } from 'lucide-react';
+import { SearchForm } from '@/components/SearchForm';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default async function Home() {
   const rides = await getRides();
@@ -15,6 +17,12 @@ export default async function Home() {
           Seamless travel between Birgunj and Kathmandu.
         </p>
       </div>
+
+      <Card className="mb-8">
+        <CardContent className="p-4 sm:p-6">
+            <SearchForm />
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {rides.map((ride) => (
