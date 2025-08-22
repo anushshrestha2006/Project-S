@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { updateUserRole, deleteUser } from "@/lib/actions";
 import { Input } from "@/components/ui/input";
 import { Search, Trash2, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 function DeleteUserDialog({ user, onConfirm, isPending }: { user: User, onConfirm: () => void, isPending: boolean }) {
     return (
@@ -61,7 +62,9 @@ function DeleteUserDialog({ user, onConfirm, isPending }: { user: User, onConfir
 
 export function UserTable({ initialUsers }: { initialUsers: User[] }) {
     const [users, setUsers] = useState(initialUsers);
+    const [nameFilter, setNameFilter] = useState('');
     const [emailFilter, setEmailFilter] = useState('');
+    const [roleFilter, setRoleFilter] = useState('all');
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
@@ -91,25 +94,46 @@ export function UserTable({ initialUsers }: { initialUsers: User[] }) {
     }
 
     const filteredUsers = useMemo(() => {
-        if (!emailFilter) {
-            return users;
-        }
-        return users.filter(user =>
-            user.email.toLowerCase().includes(emailFilter.toLowerCase())
-        );
-    }, [users, emailFilter]);
+        return users.filter(user => {
+             const nameMatch = !nameFilter || user.name.toLowerCase().includes(nameFilter.toLowerCase());
+             const emailMatch = !emailFilter || user.email.toLowerCase().includes(emailFilter.toLowerCase());
+             const roleMatch = roleFilter === 'all' || user.role === roleFilter;
+             return nameMatch && emailMatch && roleMatch;
+        });
+    }, [users, nameFilter, emailFilter, roleFilter]);
 
     return (
         <>
-            <div className="mb-4">
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by name..."
+                        value={nameFilter}
+                        onChange={(e) => setNameFilter(e.target.value)}
+                        className="pl-8 w-full"
+                    />
+                </div>
                  <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Search by email..."
                         value={emailFilter}
                         onChange={(e) => setEmailFilter(e.target.value)}
-                        className="pl-8 max-w-sm"
+                        className="pl-8 w-full"
                     />
+                </div>
+                 <div className="grid w-full items-center">
+                    <Select value={roleFilter} onValueChange={setRoleFilter}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Filter by role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Roles</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="user">User</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
             <div className="rounded-md border">
