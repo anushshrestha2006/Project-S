@@ -122,30 +122,38 @@ export const getRides = async (
     if (filters.to && filters.to !== 'all') {
         rideList = rideList.filter(ride => ride.to === filters.to);
     }
-    if (filters.date) {
-        rideList = rideList.filter(ride => ride.date === filters.date);
-    }
-
-    // Filter out rides that have already departed
+    
     const now = new Date();
     
+    // Filter logic
     let finalRideList = rideList.filter(ride => {
         const rideDate = parseISO(ride.date);
         
-        // If the ride is for a future date, always include it
-        if (format(rideDate, 'yyyy-MM-dd') > format(now, 'yyyy-MM-dd')) {
-            return true;
+        // If a date is specified in the filter, only show rides for that date
+        if (filters.date) {
+            return ride.date === filters.date;
         }
 
-        // If the ride is for a past date, exclude it
-        if (format(rideDate, 'yyyy-MM-dd') < format(now, 'yyyy-MM-dd')) {
+        // If no date is specified, show rides for today and future dates
+        const rideDateStr = format(rideDate, 'yyyy-MM-dd');
+        const todayStr = format(now, 'yyyy-MM-dd');
+        
+        // Exclude past dates
+        if (rideDateStr < todayStr) {
             return false;
         }
-        
-        // If the ride is for today, check the departure time
-        const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
-        return departureDateTime > now;
+
+        // For rides scheduled today, check if departure time has passed
+        if (rideDateStr === todayStr) {
+            const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
+            if (departureDateTime < now) {
+                return false;
+            }
+        }
+
+        return true;
     });
+
 
     // Sort the results
     finalRideList.sort((a, b) => {
