@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useActionState } from 'react';
 import type { Ride, User, Seat as SeatType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Armchair } from 'lucide-react';
@@ -10,7 +10,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { processBooking, type BookingState } from '@/lib/actions';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 
 interface SeatProps {
@@ -94,7 +94,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
   };
   
   const initialState: BookingState = { message: null, errors: {} };
-  const [state, dispatch] = useFormState(processBooking, initialState);
+  const [state, dispatch] = useActionState(processBooking, initialState);
 
   useEffect(() => {
     if (state.message && !state.errors) {
