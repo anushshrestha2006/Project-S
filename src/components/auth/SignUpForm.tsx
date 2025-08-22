@@ -90,13 +90,14 @@ export function SignUpForm() {
         await updateProfile(firebaseUser, { 
             displayName: values.name,
         });
+        
+        const isAdmin = values.email.toLowerCase() === 'anushshrestha8683@gmail.com';
 
         const newUser: Omit<User, 'id'> = {
             name: values.name,
             email: values.email,
             phoneNumber: values.phoneNumber,
-            role: 'user',
-            bookings: []
+            role: isAdmin ? 'admin' : 'user',
         };
 
         // Store user info in Firestore

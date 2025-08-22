@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@/lib/types';
 import { Mail, Lock } from 'lucide-react';
+import { getUserProfile } from '@/lib/data';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -45,20 +46,10 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const firebaseUser = userCredential.user;
 
-      // Get user role from Firestore
-      const userDocRef = doc(db, "users", firebaseUser.uid);
-      const userDoc = await getDoc(userDocRef);
+      // Get user profile from Firestore
+      const user = await getUserProfile(firebaseUser.uid);
 
-      if (userDoc.exists()) {
-        const userData = userDoc.data() as User;
-         const user: User = {
-          id: firebaseUser.uid,
-          name: userData.name,
-          email: userData.email,
-          role: userData.role || 'user',
-          phoneNumber: userData.phoneNumber,
-        };
-        
+      if (user) {
         localStorage.setItem('sumo-sewa-user', JSON.stringify(user));
         toast({
           title: 'Login Successful',

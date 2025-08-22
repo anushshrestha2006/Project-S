@@ -38,4 +38,5 @@ export type User = {
   phoneNumber?: string;
   role: 'user' | 'admin';
   bookings?: Pick<Booking, 'rideId' | 'seats'>[];
+  photoURL?: string;
 };

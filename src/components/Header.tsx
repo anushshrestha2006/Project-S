@@ -31,6 +31,8 @@ export default function Header() {
             setUser(profile);
             localStorage.setItem('sumo-sewa-user', JSON.stringify(profile));
         } else {
+             // This might happen if Firestore data isn't created yet
+             // We create a temporary user object until profile is fetched
              const tempUser: User = {
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || "User",
@@ -77,7 +79,7 @@ export default function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-9 w-9 border-2 border-primary/50">
-                       <AvatarImage src={user.photoURL} alt={user.name} />
+                       {user.photoURL && <AvatarImage src={user.photoURL} alt={user.name} />}
                        <AvatarFallback className="bg-primary/20 text-primary font-bold">{getInitials(user.name)}</AvatarFallback>
                     </Avatar>
                   </Button>
@@ -106,6 +108,7 @@ export default function Header() {
                         </DropdownMenuItem>
                     </Link>
                   )}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Log out</span>
