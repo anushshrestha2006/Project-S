@@ -217,7 +217,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Ride &amp; Booking Details</TableHead>
+                            <TableHead>Ride & Booking Details</TableHead>
                             <TableHead>Passenger</TableHead>
                             <TableHead>Payment</TableHead>
                             <TableHead>Status</TableHead>
