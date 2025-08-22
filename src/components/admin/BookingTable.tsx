@@ -37,6 +37,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     const [bookings, setBookings] = useState(initialBookings);
     const [dateFilter, setDateFilter] = useState<Date | undefined>();
     const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>("all");
     const [bookingIdFilter, setBookingIdFilter] = useState<string>("");
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const router = useRouter();
@@ -74,11 +75,12 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
             
             const dateMatch = !dateFilter || format(rideDate, 'yyyy-MM-dd') === format(dateFilter, 'yyyy-MM-dd');
             const statusMatch = statusFilter === 'all' || booking.status === statusFilter;
+            const vehicleMatch = vehicleTypeFilter === 'all' || booking.rideDetails.vehicleType === vehicleTypeFilter;
             const idMatch = !bookingIdFilter || booking.id.toLowerCase().includes(bookingIdFilter.toLowerCase());
 
-            return dateMatch && statusMatch && idMatch;
+            return dateMatch && statusMatch && idMatch && vehicleMatch;
         });
-    }, [bookings, dateFilter, statusFilter, bookingIdFilter]);
+    }, [bookings, dateFilter, statusFilter, bookingIdFilter, vehicleTypeFilter]);
 
     const handleStatusUpdate = (bookingId: string, rideId: string, seats: number[], newStatus: 'confirmed' | 'cancelled') => {
         startTransition(async () => {
@@ -155,8 +157,8 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
 
     return (
         <div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end">
-                <div className="grid w-full items-center gap-1.5 md:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 items-end">
+                <div className="grid w-full items-center gap-1.5 lg:col-span-2">
                     <Label htmlFor="bookingId">Search by Booking ID</Label>
                     <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -208,7 +210,20 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                         </SelectContent>
                     </Select>
                 </div>
-                 <div className="grid grid-cols-2 w-full items-center gap-2 md:col-start-4">
+                 <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="vehicleTypeFilter">Filter by Vehicle</Label>
+                    <Select value={vehicleTypeFilter} onValueChange={setVehicleTypeFilter}>
+                        <SelectTrigger id="vehicleTypeFilter">
+                            <SelectValue placeholder="Select vehicle" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Vehicles</SelectItem>
+                            <SelectItem value="Sumo">Sumo</SelectItem>
+                            <SelectItem value="EV">EV</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="grid grid-cols-2 w-full items-center gap-2 lg:col-start-4">
                      <Button onClick={handleExport} variant="outline">
                         <Download className="mr-2 h-4 w-4" />
                         Export
