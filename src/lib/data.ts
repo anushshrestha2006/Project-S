@@ -20,10 +20,19 @@ async function seedDailyRides() {
     const ridesCol = collection(db, 'rides');
 
     // Check if rides for today already exist to prevent re-seeding.
-    const q = query(ridesCol, where('date', '==', Timestamp.fromDate(today)));
+    const q = query(ridesCol, where('date', '>=', Timestamp.fromDate(today)));
     const existingRidesSnapshot = await getDocs(q);
+    
+    // A simple check to see if any documents have today's date string.
+    // This isn't perfect but avoids complex range queries for a simple seed check.
+    const alreadySeeded = existingRidesSnapshot.docs.some(doc => {
+        const data = doc.data();
+        const docDate = (data.date as Timestamp).toDate();
+        return format(docDate, 'yyyy-MM-dd') === todayStr;
+    });
 
-    if (existingRidesSnapshot.empty) {
+
+    if (!alreadySeeded) {
         console.log(`No rides found for ${todayStr}. Seeding from templates...`);
         
         // Fetch the ride templates from Firestore.
@@ -70,30 +79,29 @@ export const getRides = async (
     const ridesCol = collection(db, 'rides');
     
     // Base query constraints
-    const queryConstraints = [
-      orderBy('date'),
-      orderBy('departureTime')
-    ];
+    let q = query(ridesCol, orderBy('date'), orderBy('departureTime'));
+
+    const queryConstraints = [];
 
     if (filters.date) {
         const filterDateStart = startOfDay(new Date(filters.date));
         const filterDateEnd = new Date(filterDateStart);
         filterDateEnd.setDate(filterDateEnd.getDate() + 1);
-        queryConstraints.unshift(where('date', '<', Timestamp.fromDate(filterDateEnd)));
-        queryConstraints.unshift(where('date', '>=', Timestamp.fromDate(filterDateStart)));
+        queryConstraints.push(where('date', '>=', Timestamp.fromDate(filterDateStart)));
+        queryConstraints.push(where('date', '<', Timestamp.fromDate(filterDateEnd)));
     } else {
         // Default to showing rides from today onwards
-        queryConstraints.unshift(where('date', '>=', Timestamp.fromDate(startOfDay(new Date()))));
+        queryConstraints.push(where('date', '>=', Timestamp.fromDate(startOfDay(new Date()))));
     }
     
     if (filters.from && filters.from !== 'all') {
-        queryConstraints.unshift(where('from', '==', filters.from));
+        queryConstraints.push(where('from', '==', filters.from));
     }
     if (filters.to && filters.to !== 'all') {
-        queryConstraints.unshift(where('to', '==', filters.to));
+        queryConstraints.push(where('to', '==', filters.to));
     }
 
-    const q = query(ridesCol, ...queryConstraints);
+    q = query(ridesCol, ...queryConstraints, orderBy('date'), orderBy('departureTime'));
 
     const rideSnapshot = await getDocs(q);
     const rideList = rideSnapshot.docs.map(doc => {
