@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight } from "lucide-react";
+import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format, isSameDay } from "date-fns";
 import { auth } from "@/lib/firebase";
@@ -28,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
@@ -224,16 +225,25 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                       {booking.status === 'pending-payment' && (
-                                          <div className="flex gap-2">
-                                            <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleStatusUpdate(booking.id, booking.rideId, booking.seats, 'confirmed')} disabled={isPending}>
-                                                <CheckCircle className="mr-2 h-4 w-4"/> Confirm
-                                            </Button>
-                                            <Button size="sm" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleStatusUpdate(booking.id, booking.rideId, booking.seats, 'cancelled')} disabled={isPending}>
-                                                 <XCircle className="mr-2 h-4 w-4"/> Cancel
-                                            </Button>
-                                          </div>
-                                       )}
+                                        <div className="flex gap-2 items-center">
+                                           {booking.status === 'pending-payment' && (
+                                              <>
+                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleStatusUpdate(booking.id, booking.rideId, booking.seats, 'confirmed')} disabled={isPending}>
+                                                    <CheckCircle className="mr-2 h-4 w-4"/> Confirm
+                                                </Button>
+                                                <Button size="sm" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleStatusUpdate(booking.id, booking.rideId, booking.seats, 'cancelled')} disabled={isPending}>
+                                                     <XCircle className="mr-2 h-4 w-4"/> Cancel
+                                                </Button>
+                                              </>
+                                           )}
+                                            {booking.status === 'confirmed' && (
+                                                 <Button asChild size="sm" variant="ghost">
+                                                    <Link href={`/ticket/${booking.id}`} target="_blank">
+                                                        <Ticket className="mr-2 h-4 w-4" /> View Ticket
+                                                    </Link>
+                                                 </Button>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))

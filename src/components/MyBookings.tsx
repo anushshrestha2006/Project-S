@@ -4,13 +4,15 @@
 import { useState, useEffect } from 'react';
 import { getBookingsByUserId } from '@/lib/data';
 import type { Booking, Ride } from '@/lib/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Skeleton } from './ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { format } from 'date-fns';
-import { Bus, Calendar, Clock, Ticket, ArrowRight, Armchair } from 'lucide-react';
+import { Bus, Calendar, Clock, Ticket, ArrowRight, Armchair, Download } from 'lucide-react';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import Link from 'next/link';
 
 function BookingCard({ booking }: { booking: Booking }) {
     if (!booking.rideDetails) return null;
@@ -62,6 +64,16 @@ function BookingCard({ booking }: { booking: Booking }) {
                     Booked on: {format(booking.bookingTime as Date, "PPP p")}
                 </div>
             </CardContent>
+             {booking.status === 'confirmed' && (
+                 <CardFooter>
+                     <Button asChild variant="outline" className="w-full">
+                        <Link href={`/ticket/${booking.id}`} target="_blank">
+                             <Ticket className="mr-2 h-4 w-4" />
+                            View Ticket
+                        </Link>
+                    </Button>
+                </CardFooter>
+            )}
         </Card>
     );
 }

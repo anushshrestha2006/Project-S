@@ -201,6 +201,28 @@ export const getBookingsByUserId = async (userId: string): Promise<Booking[]> =>
     return bookingsWithRides.filter(b => b.rideDetails); 
 };
 
+export const getBookingById = async (bookingId: string): Promise<Booking | null> => {
+    const bookingRef = doc(db, 'bookings', bookingId);
+    const bookingSnap = await getDoc(bookingRef);
+
+    if (!bookingSnap.exists()) {
+        return null;
+    }
+
+    const bookingData = bookingSnap.data();
+    const rideDetails = await getRideById(bookingData.rideId, true);
+    if (!rideDetails) {
+        return null;
+    }
+
+    return {
+        id: bookingSnap.id,
+        ...bookingData,
+        bookingTime: (bookingData.bookingTime as Timestamp).toDate(),
+        rideDetails: rideDetails,
+    } as Booking;
+}
+
 
 export const createBooking = async (
   bookingData: Omit<Booking, 'id' | 'bookingTime'>
