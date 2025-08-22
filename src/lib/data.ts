@@ -2,7 +2,7 @@
 
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc, DocumentData, QuerySnapshot, deleteDoc } from 'firebase/firestore';
-import type { Ride, Booking, User, Seat, SeatStatus, PaymentDetails } from './types';
+import type { Ride, Booking, User, Seat, SeatStatus, PaymentDetails, FooterSettings } from './types';
 import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
 const initialSeatsSumo: Seat[] = Array.from({ length: 9 }, (_, i) => ({
@@ -394,4 +394,26 @@ export async function setPaymentQrUrl(paymentMethod: 'esewa' | 'khalti' | 'imepa
     await setDoc(docRef, {
         [paymentMethod]: { qrUrl: url }
     }, { merge: true });
+}
+
+export async function getFooterSettings(): Promise<FooterSettings> {
+    const docRef = doc(db, 'config', 'footerSettings');
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        return docSnap.data() as FooterSettings;
+    } else {
+        // Return default/empty values if not set
+        return {
+            customerServicePhone: '+977-98XXXXXXXX',
+            whatsappNumber: '+977-98XXXXXXXX',
+            facebookUrl: 'https://facebook.com',
+            instagramUrl: 'https://instagram.com',
+        };
+    }
+}
+
+export async function updateFooterSettings(settings: FooterSettings): Promise<void> {
+    const docRef = doc(db, 'config', 'footerSettings');
+    await setDoc(docRef, settings, { merge: true });
 }

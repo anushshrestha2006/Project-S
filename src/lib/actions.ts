@@ -2,13 +2,13 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db } from './firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { doc, updateDoc, collection } from 'firebase/firestore';
-import type { User } from './types';
+import type { User, FooterSettings } from './types';
 import { format } from 'date-fns';
 
 const BookingFormSchema = z.object({
@@ -222,5 +222,39 @@ export async function uploadPaymentQr(prevState: any, formData: FormData): Promi
         console.error("QR Upload Error:", error);
         const errorMessage = (error instanceof Error) ? error.message : "An unknown error occurred.";
         return { success: false, message: `Upload failed: ${errorMessage}` };
+    }
+}
+
+
+const FooterSettingsSchema = z.object({
+    customerServicePhone: z.string().min(1, 'Customer service phone is required.'),
+    whatsappNumber: z.string().min(1, 'WhatsApp number is required.'),
+    facebookUrl: z.string().url('Please enter a valid URL for Facebook.'),
+    instagramUrl: z.string().url('Please enter a valid URL for Instagram.'),
+});
+
+export async function updateFooterSettings(prevState: any, formData: FormData): Promise<{ success: boolean; message: string, errors?: any }> {
+    const validatedFields = FooterSettingsSchema.safeParse({
+        customerServicePhone: formData.get('customerServicePhone'),
+        whatsappNumber: formData.get('whatsappNumber'),
+        facebookUrl: formData.get('facebookUrl'),
+        instagramUrl: formData.get('instagramUrl'),
+    });
+    
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: "Validation failed. Please check the fields.",
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    try {
+        await updateFooterSettingsInDb(validatedFields.data);
+        revalidatePath('/'); // Revalidate all pages that use the footer
+        return { success: true, message: 'Footer settings updated successfully.' };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+        return { success: false, message: `Failed to update settings: ${errorMessage}` };
     }
 }

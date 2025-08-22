@@ -56,3 +56,10 @@ export type PaymentDetails = {
         qrUrl: string;
     }
 };
+
+export interface FooterSettings {
+  customerServicePhone: string;
+  whatsappNumber: string;
+  facebookUrl: string;
+  instagramUrl: string;
+}
