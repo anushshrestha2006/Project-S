@@ -9,47 +9,53 @@ const initialSeats: Seat[] = Array.from({ length: 9 }, (_, i) => ({
     status: 'available',
 }));
 
-const dailyRideTemplates = [
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', price: 2500, vehicleType: 'Sumo' },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', price: 2500, vehicleType: 'Sumo' },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', price: 2500, vehicleType: 'Sumo' },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', price: 2500, vehicleType: 'Sumo' },
-] as const;
-
-
 /**
- * Seeds the database with the four standard daily rides for a given date if they don't already exist.
- * This prevents duplicate rides from being created on subsequent page loads.
+ * Seeds the database with daily rides based on templates stored in the `dailyRideTemplates` collection.
+ * This function checks if rides for the current date have already been created and, if not,
+ * creates them based on the templates. This allows for managing daily ride schedules directly from Firestore.
  */
 async function seedDailyRides() {
     const today = startOfDay(new Date());
-    const ridesCol = collection(db, 'rides');
     const todayStr = format(today, 'yyyy-MM-dd');
+    const ridesCol = collection(db, 'rides');
 
-    // Check if rides for today already exist
+    // Check if rides for today already exist to prevent re-seeding.
     const q = query(ridesCol, where('date', '==', Timestamp.fromDate(today)));
     const existingRidesSnapshot = await getDocs(q);
 
     if (existingRidesSnapshot.empty) {
-        console.log(`No rides found for ${todayStr}. Seeding now...`);
-        const batch = writeBatch(db);
+        console.log(`No rides found for ${todayStr}. Seeding from templates...`);
+        
+        // Fetch the ride templates from Firestore.
+        const templatesCol = collection(db, 'dailyRideTemplates');
+        const templateSnapshot = await getDocs(templatesCol);
 
-        dailyRideTemplates.forEach(template => {
+        if (templateSnapshot.empty) {
+            console.log("No ride templates found in 'dailyRideTemplates' collection. No rides will be seeded.");
+            return;
+        }
+
+        const batch = writeBatch(db);
+        templateSnapshot.docs.forEach(templateDoc => {
+            const template = templateDoc.data();
             const newRideDoc = doc(ridesCol); // Create a new document reference with a unique ID
-            const rideData: Omit<Ride, 'id'> = {
-                ...template,
-                date: todayStr,
+
+            const rideData = {
+                from: template.from,
+                to: template.to,
+                departureTime: template.departureTime,
+                arrivalTime: template.arrivalTime,
+                price: template.price,
+                vehicleType: template.vehicleType,
                 seats: initialSeats,
-                totalSeats: 9,
-            };
-            batch.set(newRideDoc, {
-                ...rideData,
+                totalSeats: initialSeats.length,
                 date: Timestamp.fromDate(today), // Store as Firestore Timestamp
-            });
+            };
+            batch.set(newRideDoc, rideData);
         });
 
         await batch.commit();
-        console.log("Successfully seeded rides for today.");
+        console.log(`Successfully seeded ${templateSnapshot.size} rides for today.`);
     }
 }
 
@@ -58,8 +64,7 @@ export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
     
-    // Ensure daily rides for today exist.
-    // In a production app, this might be a scheduled job.
+    // Ensure daily rides for today exist based on templates in Firestore.
     await seedDailyRides();
     
     const ridesCol = collection(db, 'rides');
