@@ -12,7 +12,7 @@ export type Ride = {
   departureTime: string; // e.g., "06:00 AM"
   arrivalTime: string; // e.g., "02:00 PM"
   vehicleType: 'Sumo';
-  totalSeats: number;
+  totalSeats: 9;
   seats: Seat[];
   price: number;
   date: string; // YYYY-MM-DD

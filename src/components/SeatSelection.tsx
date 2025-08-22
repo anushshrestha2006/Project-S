@@ -102,19 +102,29 @@ export function SeatSelection({ ride }: { ride: Ride }) {
 
   const renderSeats = () => {
     const seatLayout = [];
+
     // Driver seat
     seatLayout.push(
-        <div key="driver" className="flex flex-col items-center justify-center text-muted-foreground">
+        <div key="driver" className="flex flex-col items-center justify-center text-muted-foreground col-start-2">
             <SteeringWheel className="w-6 h-6 sm:w-8 sm:h-8" />
             <span className="text-xs font-semibold">Driver</span>
         </div>
     );
-    // Spacer - after driver
-    seatLayout.push(<div key="spacer-front" className="col-span-1"></div>);
-    seatLayout.push(<div key="spacer-front-2" className="col-span-1"></div>);
+    // Front seat
+    const frontSeat = ride.seats[0];
+     seatLayout.push(
+        <Seat
+            key={frontSeat.number}
+            seat={frontSeat}
+            isSelected={selectedSeats.includes(frontSeat.number)}
+            onSelect={handleSelectSeat}
+        />
+    );
+    // Spacer for full row
+    seatLayout.push(<div key="spacer-1" className="col-span-4 h-4"></div>);
 
 
-    ride.seats.forEach((seat) => {
+    ride.seats.slice(1).forEach((seat) => {
         seatLayout.push(
             <Seat
                 key={seat.number}
@@ -123,10 +133,6 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                 onSelect={handleSelectSeat}
             />
         );
-        // Add a spacer for aisle after every 2 seats in a row of 3 (1 | 2 3)
-         if (seat.number % 3 === 1) {
-             seatLayout.push(<div key={`spacer-${seat.number}`} className="col-span-1"></div>)
-        }
     });
     return seatLayout;
   };
@@ -141,7 +147,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                 </CardHeader>
                 <CardContent>
                     <div className="p-4 bg-background rounded-lg border-2 border-dashed">
-                        <div className="grid grid-cols-4 gap-2 md:gap-4 max-w-md mx-auto">
+                        <div className="grid grid-cols-4 gap-2 md:gap-4 max-w-sm mx-auto">
                             {renderSeats()}
                         </div>
                     </div>
