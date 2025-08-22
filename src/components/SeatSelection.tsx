@@ -44,18 +44,18 @@ const SteeringWheel = (props: React.SVGProps<SVGSVGElement>) => (
 
 function Seat({ seat, isSelected, onSelect }: SeatProps) {
   const status = isSelected ? 'selected' : seat.status;
-  const isBooked = seat.status === 'booked';
+  const isUnavailable = seat.status === 'booked' || seat.status === 'locked';
 
   return (
     <button
       onClick={() => onSelect(seat.number)}
-      disabled={isBooked}
+      disabled={isUnavailable}
       className={cn(
         'flex flex-col items-center justify-center p-1 rounded-md transition-all duration-200 aspect-square border-2',
         'disabled:cursor-not-allowed disabled:opacity-40',
         status === 'available' && 'border-accent bg-accent/20 text-accent-foreground hover:bg-accent',
         status === 'selected' && 'border-primary bg-primary text-primary-foreground ring-2 ring-offset-2 ring-primary ring-offset-background',
-        status === 'booked' && 'border-muted bg-muted text-muted-foreground'
+        isUnavailable && 'border-muted bg-muted text-muted-foreground'
       )}
       aria-label={`Seat ${seat.number}`}
     >
