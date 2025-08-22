@@ -71,10 +71,20 @@ export const getRides = async (
 ): Promise<Ride[]> => {
     
     let allRides: Ride[] = generateRides();
-    
     const rideIds = allRides.map(r => r.id);
-    const ridesSnapshot = await getDocs(query(collection(db, 'rides'), where('__name__', 'in', rideIds)));
-    const firestoreRides = new Map(ridesSnapshot.docs.map(doc => [doc.id, doc.data() as Ride]));
+
+    const firestoreRides = new Map<string, Ride>();
+    const CHUNK_SIZE = 30; // Firestore 'in' query limit
+
+    for (let i = 0; i < rideIds.length; i += CHUNK_SIZE) {
+        const chunk = rideIds.slice(i, i + CHUNK_SIZE);
+        if (chunk.length > 0) {
+            const ridesSnapshot = await getDocs(query(collection(db, 'rides'), where('__name__', 'in', chunk)));
+            ridesSnapshot.docs.forEach(doc => {
+                firestoreRides.set(doc.id, doc.data() as Ride);
+            });
+        }
+    }
 
     allRides = allRides.map(ride => {
         const firestoreRide = firestoreRides.get(ride.id);
