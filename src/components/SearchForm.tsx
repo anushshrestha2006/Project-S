@@ -83,6 +83,7 @@ export function SearchForm() {
                         mode="single"
                         selected={dateValue}
                         onSelect={(date) => handleSearch({ date: date ? format(date, 'yyyy-MM-dd') : undefined })}
+                        disabled={{ before: new Date() }}
                         initialFocus
                     />
                     </PopoverContent>
