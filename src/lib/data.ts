@@ -1,10 +1,7 @@
-
-
-
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat } from './types';
-import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays } from 'date-fns';
+import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
 const initialSeats: Seat[] = Array.from({ length: 9 }, (_, i) => ({
     number: i + 1,
@@ -175,23 +172,17 @@ export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
     
-    // Create a fresh copy to avoid in-memory data modification across requests.
-    // In a real Firestore implementation, you'd query Firestore directly.
-    // For this app, we'll keep rides in-memory but manage state in Firestore.
     let allRides: Ride[] = JSON.parse(JSON.stringify(ridesDB));
     
-    // Query Firestore for the current state of all rides
     const ridesSnapshot = await getDocs(query(ridesCollection));
     const firestoreRides = new Map(ridesSnapshot.docs.map(doc => [doc.id, doc.data() as Ride]));
 
-    // Update in-memory rides with Firestore state
     allRides = allRides.map(ride => {
         const firestoreRide = firestoreRides.get(ride.id);
         return firestoreRide ? { ...ride, seats: firestoreRide.seats } : ride;
     });
 
     
-    // 1. Filter by route (from/to)
     if (filters.from && filters.from !== 'all') {
         allRides = allRides.filter(ride => ride.from === filters.from);
     }
@@ -205,11 +196,9 @@ export const getRides = async (
 
     let finalRideList;
 
-    // If a specific date is selected, filter by that date.
     if (filters.date) {
         finalRideList = allRides.filter(ride => ride.date === filters.date);
     } else {
-        // If no date is selected, try to find rides for today first.
         const todayRides = allRides.filter(ride => ride.date === todayStr);
         const availableTodayRides = todayRides.filter(ride => {
             const departureDateTime = parse(ride.departureTime, 'hh:mm a', parseISO(`${ride.date}T00:00:00.000Z`));
@@ -217,31 +206,27 @@ export const getRides = async (
         });
 
         if (availableTodayRides.length > 0) {
-            // If there are available rides today, show them.
             finalRideList = availableTodayRides;
         } else {
-            // Otherwise, show all rides for tomorrow.
             finalRideList = allRides.filter(ride => ride.date === tomorrowStr);
         }
     }
 
-    // 3. Filter by time logic for the selected day if it is today
-    if (filters.date === todayStr) {
+    if (filters.date === todayStr || (!filters.date && finalRideList.some(r => r.date === todayStr))) {
          finalRideList = finalRideList.filter(ride => {
+            if (ride.date !== todayStr) return true; // Keep future-day rides
             const departureDateTime = parse(ride.departureTime, 'hh:mm a', parseISO(`${ride.date}T00:00:00.000Z`));
             return departureDateTime > now;
         });
     }
 
 
-    // Sort the final results
     finalRideList.sort((a, b) => {
         const dateA = new Date(a.date).getTime();
         const dateB = new Date(b.date).getTime();
         if (dateA !== dateB) {
             return dateA - dateB;
         }
-        // If dates are same, sort by departure time
         const timeA = parse(a.departureTime, 'hh:mm a', new Date()).getTime();
         const timeB = parse(b.departureTime, 'hh:mm a', new Date()).getTime();
         return timeA - timeB;
@@ -250,42 +235,30 @@ export const getRides = async (
     return finalRideList;
 };
 
-export const getRideById = async (id: string): Promise<Ride | undefined> => {
+export const getRideById = async (id: string, includePast = false): Promise<Ride | undefined> => {
     const rideRef = doc(db, 'rides', id);
     const rideSnap = await getDoc(rideRef);
     
     if (!rideSnap.exists()) {
-        // Fallback to in-memory generation for dynamic future rides if not found in Firestore
-        const baseRideId = id.split('-day')[0];
-        const baseRide = ridesDB.find(r => r.id === baseRideId);
+        const baseRide = ridesDB.find(r => r.id === id);
         if(!baseRide) return undefined;
-        
-        const dayIndexMatch = id.match(/-day(\d+)$/);
-        const dayIndex = dayIndexMatch ? parseInt(dayIndexMatch[1], 10) : -1;
-        
-        if (dayIndex >= 0) {
-            const newRide = JSON.parse(JSON.stringify(baseRide));
-            newRide.id = id;
-            newRide.date = format(addDays(new Date(), dayIndex), 'yyyy-MM-dd');
-            // Before returning, ensure it's seeded in DB for future bookings
-            await setDoc(rideRef, newRide);
-            return newRide as Ride;
-        }
-
-        return undefined;
+        // This logic is for rides that might not be in firestore yet, but are in our hardcoded list
+        await setDoc(rideRef, baseRide);
+        return baseRide as Ride;
     }
 
     const ride = rideSnap.data() as Ride;
 
-    // Add filtering logic to ensure ride is not in the past
+    if (includePast) {
+        return { id: rideSnap.id, ...ride };
+    }
+
     const now = getNepalTime();
     const rideDate = parseISO(ride.date);
-
-    if (isToday(rideDate)) {
-        const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
-        if (departureDateTime < now) {
-            return undefined; // Ride has already departed
-        }
+    const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
+    
+    if (isPast(departureDateTime)) {
+        return undefined; // Ride has already departed
     }
 
     return { id: rideSnap.id, ...ride };
@@ -306,6 +279,32 @@ export const getBookings = async (): Promise<Booking[]> => {
     });
 };
 
+export const getBookingsByUserId = async (userId: string): Promise<Booking[]> => {
+    const bookingsCollection = collection(db, 'bookings');
+    const q = query(
+        bookingsCollection, 
+        where('userId', '==', userId), 
+        orderBy('bookingTime', 'desc')
+    );
+    const bookingsSnapshot = await getDocs(q);
+
+    const bookingsWithRides = await Promise.all(
+        bookingsSnapshot.docs.map(async (doc) => {
+            const bookingData = doc.data();
+            const rideDetails = await getRideById(bookingData.rideId, true); // Include past rides
+            return {
+                id: doc.id,
+                ...bookingData,
+                bookingTime: (bookingData.bookingTime as Timestamp).toDate(),
+                rideDetails: rideDetails,
+            } as Booking;
+        })
+    );
+
+    return bookingsWithRides.filter(b => b.rideDetails); // Filter out bookings where ride couldn't be found
+};
+
+
 export const createBooking = async (
   bookingData: Omit<Booking, 'id' | 'bookingTime'>
 ): Promise<Booking> => {
@@ -322,7 +321,6 @@ export const createBooking = async (
 
         const ride = rideDoc.data() as Ride;
 
-        // Check seat availability
         bookingData.seats.forEach(seatNumber => {
             const seat = ride.seats.find(s => s.number === seatNumber);
             if (!seat || seat.status !== 'available') {
@@ -330,7 +328,6 @@ export const createBooking = async (
             }
         });
 
-        // Update ride seats
         const newSeats = ride.seats.map(seat =>
             bookingData.seats.includes(seat.number)
                 ? { ...seat, status: 'booked' }
@@ -338,7 +335,6 @@ export const createBooking = async (
         );
         transaction.update(rideRef, { seats: newSeats });
 
-        // Create new booking document
         const bookingWithTimestamp = {
             ...bookingData,
             bookingTime: Timestamp.now()
@@ -346,16 +342,6 @@ export const createBooking = async (
         const newBookingRef = doc(collection(db, 'bookings'));
         transaction.set(newBookingRef, bookingWithTimestamp);
         newBookingId = newBookingRef.id;
-
-        // Optionally, add booking reference to user document
-        // This is commented out but is good practice for more complex apps
-        // const userDoc = await transaction.get(userRef);
-        // if (userDoc.exists()) {
-        //     const bookings = userDoc.data().bookings || [];
-        //     transaction.update(userRef, {
-        //         bookings: [...bookings, { rideId: bookingData.rideId, seats: bookingData.seats }]
-        //     });
-        // }
     });
 
     const newBookingSnap = await getDoc(doc(db, 'bookings', newBookingId!));

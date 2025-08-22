@@ -28,6 +28,7 @@ export type Booking = {
   bookingTime: Date | Timestamp;
   passengerName: string;
   passengerPhone: string;
+  rideDetails?: Ride;
 };
 
 export type User = {

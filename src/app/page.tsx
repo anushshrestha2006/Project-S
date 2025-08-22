@@ -10,6 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { HomePageClientContent } from '@/components/HomePageClientContent';
+
 
 export default async function Home({
   searchParams,
@@ -28,7 +30,18 @@ export default async function Home({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
+        <HomePageClientContent />
+
+      <div className="text-center mb-8 mt-8">
+        <h1 className="text-4xl font-bold tracking-tight text-primary font-headline">
+          Available Rides
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Seamless travel between Birgunj and Kathmandu.
+        </p>
+      </div>
+
+       <div className="mb-8">
          <Card className="shadow-lg">
             <CardHeader>
                 <CardTitle className="text-2xl font-headline flex items-center">
@@ -47,14 +60,6 @@ export default async function Home({
         </Card>
       </div>
 
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold tracking-tight text-primary font-headline">
-          Available Rides
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Seamless travel between Birgunj and Kathmandu.
-        </p>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {rides.map((ride) => (
