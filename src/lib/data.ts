@@ -1,7 +1,7 @@
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat } from './types';
-import { format, isAfter, isEqual, startOfDay } from 'date-fns';
+import { format, isAfter, isEqual, startOfDay, parse } from 'date-fns';
 
 
 // A flag to control the one-time reset. In a real app, you'd use a more robust
@@ -83,6 +83,23 @@ export const getRides = async (
             date: format((data.date as Timestamp).toDate(), 'yyyy-MM-dd'),
         } as Ride;
     });
+
+    // Post-filter for today's rides to exclude those that have already departed
+    if (!filters.date) {
+        const now = new Date();
+        const todayStr = format(now, 'yyyy-MM-dd');
+        
+        return rideList.filter(ride => {
+            if (ride.date !== todayStr) {
+                // If the ride is for a future date, always include it
+                return true;
+            }
+            // If the ride is for today, check the departure time
+            const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd h:mm a', new Date());
+            return isAfter(departureDateTime, now);
+        });
+    }
+
 
     return rideList;
 };
