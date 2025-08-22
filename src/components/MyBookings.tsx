@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getBookingsByUserId } from '@/lib/data';
 import type { Booking, Ride } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
@@ -9,12 +9,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Skeleton } from './ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { format } from 'date-fns';
-import { Bus, Calendar, Clock, Ticket, ArrowRight, Armchair, Download } from 'lucide-react';
+import { Bus, Calendar, Clock, Ticket, ArrowRight, Armchair, Download, Loader2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { TicketContent } from './Ticket';
 
-function BookingCard({ booking }: { booking: Booking }) {
+function BookingCard({ booking, onDownload, isDownloading }: { booking: Booking, onDownload: (booking: Booking) => void, isDownloading: boolean }) {
     if (!booking.rideDetails) return null;
 
     const ride = booking.rideDetails;
@@ -65,12 +68,20 @@ function BookingCard({ booking }: { booking: Booking }) {
                 </div>
             </CardContent>
              {booking.status === 'confirmed' && (
-                 <CardFooter>
-                     <Button asChild variant="outline" className="w-full">
+                 <CardFooter className="flex-wrap gap-2">
+                     <Button asChild variant="outline" className="flex-1">
                         <Link href={`/ticket/${booking.id}`} target="_blank">
                              <Ticket className="mr-2 h-4 w-4" />
                             View Ticket
                         </Link>
+                    </Button>
+                     <Button onClick={() => onDownload(booking)} disabled={isDownloading} className="flex-1">
+                        {isDownloading ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Download className="mr-2 h-4 w-4" />
+                        )}
+                        Download
                     </Button>
                 </CardFooter>
             )}
@@ -83,6 +94,9 @@ export function MyBookings({ userId }: { userId: string }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [bookingToDownload, setBookingToDownload] = useState<Booking | null>(null);
+  const ticketRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function fetchBookings() {
@@ -100,6 +114,40 @@ export function MyBookings({ userId }: { userId: string }) {
     fetchBookings();
   }, [userId]);
 
+  const handleDownload = (booking: Booking) => {
+    setBookingToDownload(booking);
+    setIsDownloading(true);
+  }
+
+  useEffect(() => {
+      const performDownload = async () => {
+        if (!isDownloading || !bookingToDownload || !ticketRef.current) return;
+        
+        try {
+            const canvas = await html2canvas(ticketRef.current, { scale: 2, useCORS: true });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'px',
+                format: [canvas.width, canvas.height]
+            });
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`sumo-sewa-ticket-${bookingToDownload.id}.pdf`);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            // You could show a toast message here
+        } finally {
+            setIsDownloading(false);
+            setBookingToDownload(null);
+        }
+      }
+
+      // We need a timeout to allow React to render the hidden ticket before we try to capture it.
+      if (isDownloading && bookingToDownload) {
+          setTimeout(performDownload, 100);
+      }
+  }, [isDownloading, bookingToDownload]);
+
   const now = new Date();
   
   const upcomingBookings = bookings.filter(b => 
@@ -114,8 +162,7 @@ export function MyBookings({ userId }: { userId: string }) {
       !b.rideDetails || new Date(b.rideDetails.date) < now || b.status === 'cancelled'
   );
 
-
-  const renderBookingList = (list: Booking[]) => {
+  const renderBookingList = (list: Booking[], category: 'upcoming' | 'pending' | 'past') => {
       if (isLoading) {
           return Array.from({length: 2}).map((_, i) => (
                <div key={i} className="p-4 border rounded-lg space-y-3 mb-4">
@@ -139,7 +186,14 @@ export function MyBookings({ userId }: { userId: string }) {
             </div>
           )
       }
-      return list.map(booking => <BookingCard key={booking.id} booking={booking} />);
+      return list.map(booking => (
+        <BookingCard 
+            key={booking.id} 
+            booking={booking} 
+            onDownload={handleDownload}
+            isDownloading={isDownloading && bookingToDownload?.id === booking.id}
+        />
+      ));
   }
 
 
@@ -153,29 +207,37 @@ export function MyBookings({ userId }: { userId: string }) {
   }
 
   return (
-    <Card className="shadow-xl mb-8">
-        <CardHeader>
-            <CardTitle className="text-3xl font-headline text-primary">My Bookings</CardTitle>
-            <CardDescription>View your upcoming and past ride reservations.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Tabs defaultValue="upcoming">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="upcoming">Upcoming ({upcomingBookings.length})</TabsTrigger>
-                    <TabsTrigger value="pending">Pending ({pendingConfirmationBookings.length})</TabsTrigger>
-                    <TabsTrigger value="past">Past Trips ({pastBookings.length})</TabsTrigger>
-                </TabsList>
-                <TabsContent value="upcoming" className="mt-4">
-                    {renderBookingList(upcomingBookings)}
-                </TabsContent>
-                <TabsContent value="pending" className="mt-4">
-                    {renderBookingList(pendingConfirmationBookings)}
-                </TabsContent>
-                <TabsContent value="past" className="mt-4">
-                    {renderBookingList(pastBookings)}
-                </TabsContent>
-            </Tabs>
-        </CardContent>
-    </Card>
+      <>
+        <Card className="shadow-xl mb-8">
+            <CardHeader>
+                <CardTitle className="text-3xl font-headline text-primary">My Bookings</CardTitle>
+                <CardDescription>View your upcoming and past ride reservations.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Tabs defaultValue="upcoming">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="upcoming">Upcoming ({upcomingBookings.length})</TabsTrigger>
+                        <TabsTrigger value="pending">Pending ({pendingConfirmationBookings.length})</TabsTrigger>
+                        <TabsTrigger value="past">Past Trips ({pastBookings.length})</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="upcoming" className="mt-4">
+                        {renderBookingList(upcomingBookings, 'upcoming')}
+                    </TabsContent>
+                    <TabsContent value="pending" className="mt-4">
+                        {renderBookingList(pendingConfirmationBookings, 'pending')}
+                    </TabsContent>
+                    <TabsContent value="past" className="mt-4">
+                        {renderBookingList(pastBookings, 'past')}
+                    </TabsContent>
+                </Tabs>
+            </CardContent>
+        </Card>
+        {/* Hidden div for PDF generation */}
+        {isDownloading && bookingToDownload && (
+            <div className="absolute left-[-9999px] top-[-9999px] p-2" ref={ticketRef}>
+                <TicketContent booking={bookingToDownload} />
+            </div>
+        )}
+      </>
   );
 }
