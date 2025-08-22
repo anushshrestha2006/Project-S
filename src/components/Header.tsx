@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket } from 'lucide-react';
+import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { User } from '@/lib/types';
 import {
@@ -101,12 +101,20 @@ export default function Header() {
                       </DropdownMenuItem>
                   </Link>
                   {user.role === 'admin' && (
+                    <>
                      <Link href="/admin">
                         <DropdownMenuItem>
                             <LayoutDashboard className="mr-2 h-4 w-4" />
-                            Admin Panel
+                            Booking Panel
                         </DropdownMenuItem>
-                    </Link>
+                      </Link>
+                      <Link href="/admin/users">
+                        <DropdownMenuItem>
+                            <Users className="mr-2 h-4 w-4" />
+                            User Management
+                        </DropdownMenuItem>
+                      </Link>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>

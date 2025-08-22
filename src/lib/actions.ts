@@ -2,12 +2,13 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc, collection } from 'firebase/firestore';
+import type { User } from './types';
 
 const BookingFormSchema = z.object({
   rideId: z.string(),
@@ -137,5 +138,20 @@ export async function clearAllBookings(): Promise<{ success: boolean; message: s
         console.error('Error clearing all bookings:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
         return { success: false, message: `Failed to clear bookings: ${errorMessage}` };
+    }
+}
+
+export async function updateUserRole(userId: string, newRole: 'user' | 'admin'): Promise<{ success: boolean, message: string }> {
+    try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, { role: newRole });
+        
+        revalidatePath('/admin/users');
+
+        return { success: true, message: `User role has been updated to ${newRole}.` };
+    } catch (error) {
+        console.error('Error updating user role:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+        return { success: false, message: `Failed to update user role: ${errorMessage}` };
     }
 }

@@ -338,6 +338,12 @@ export const getUserProfile = async (userId: string): Promise<User | null> => {
     return null;
 }
 
+export async function getAllUsers(): Promise<User[]> {
+    const usersCollection = collection(db, 'users');
+    const usersSnapshot = await getDocs(usersCollection);
+    return usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+}
+
 export async function getAllCollectionDocuments(collectionRef: any): Promise<QuerySnapshot<DocumentData>> {
     return await getDocs(collectionRef);
 }
