@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useTransition } from "react";
 import type { Booking } from "@/lib/types";
 import {
   Table,
@@ -12,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search, ExternalLink } from "lucide-react";
+import { Download, Search, ExternalLink, CheckCircle, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { auth } from "@/lib/firebase";
@@ -21,6 +22,9 @@ import { getUserProfile, getBookings } from "@/lib/data";
 import { Timestamp } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { updateBookingStatus } from "@/lib/actions";
+import { useToast } from "@/hooks/use-toast";
+
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
     const [bookings, setBookings] = useState(initialBookings);
@@ -28,6 +32,8 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     const [phoneFilter, setPhoneFilter] = useState("");
     const [rideIdFilter, setRideIdFilter] = useState("");
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
+    const { toast } = useToast();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -54,6 +60,18 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
             return nameMatch && phoneMatch && rideIdMatch;
         });
     }, [bookings, nameFilter, phoneFilter, rideIdFilter]);
+
+    const handleStatusUpdate = (bookingId: string, rideId: string, seats: number[], newStatus: 'confirmed' | 'cancelled') => {
+        startTransition(async () => {
+            const result = await updateBookingStatus(bookingId, rideId, seats, newStatus);
+            if (result.success) {
+                toast({ title: "Success", description: result.message });
+                setBookings(bookings.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
+            } else {
+                toast({ variant: "destructive", title: "Error", description: result.message });
+            }
+        });
+    }
 
     const handleExport = () => {
         const headers = ["Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Transaction ID"];
@@ -93,6 +111,16 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         const date = time instanceof Timestamp ? time.toDate() : time;
         return format(date, "PPpp");
     }
+
+    const getStatusBadgeVariant = (status: Booking['status']) => {
+        switch (status) {
+            case 'confirmed': return 'default';
+            case 'pending-payment': return 'secondary';
+            case 'cancelled': return 'destructive';
+            default: return 'outline';
+        }
+    }
+
 
     return (
         <div>
@@ -137,7 +165,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                             <TableHead>Passenger</TableHead>
                             <TableHead>Payment</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Action</TableHead>
+                            <TableHead>Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -157,19 +185,29 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                      <TableCell>
                                         <div className="font-medium capitalize">{booking.paymentMethod}</div>
                                         <div className="text-xs text-muted-foreground">{booking.transactionId || 'N/A'}</div>
+                                         {booking.paymentScreenshotUrl && (
+                                            <Button asChild variant="ghost" size="sm" className="h-auto p-0 mt-1 text-primary hover:underline">
+                                                <a href={booking.paymentScreenshotUrl} target="_blank" rel="noopener noreferrer">
+                                                    View Screenshot <ExternalLink className="ml-1 h-3 w-3"/>
+                                                </a>
+                                            </Button>
+                                       )}
                                     </TableCell>
                                      <TableCell>
-                                        <Badge variant={booking.status === 'pending-payment' ? 'destructive' : 'secondary'}>
-                                            {booking.status}
+                                        <Badge variant={getStatusBadgeVariant(booking.status)}>
+                                            {booking.status.replace('-', ' ')}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                       {booking.paymentScreenshotUrl && (
-                                            <Button asChild variant="outline" size="sm">
-                                                <a href={booking.paymentScreenshotUrl} target="_blank" rel="noopener noreferrer">
-                                                    View Screenshot <ExternalLink className="ml-2 h-3 w-3"/>
-                                                </a>
+                                       {booking.status === 'pending-payment' && (
+                                          <div className="flex gap-2">
+                                            <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleStatusUpdate(booking.id, booking.rideId, booking.seats, 'confirmed')} disabled={isPending}>
+                                                <CheckCircle className="mr-2 h-4 w-4"/> Confirm
                                             </Button>
+                                            <Button size="sm" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleStatusUpdate(booking.id, booking.rideId, booking.seats, 'cancelled')} disabled={isPending}>
+                                                 <XCircle className="mr-2 h-4 w-4"/> Cancel
+                                            </Button>
+                                          </div>
                                        )}
                                     </TableCell>
                                 </TableRow>

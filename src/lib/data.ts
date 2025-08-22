@@ -1,7 +1,8 @@
 
+
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc } from 'firebase/firestore';
-import type { Ride, Booking, User, Seat } from './types';
+import type { Ride, Booking, User, Seat, SeatStatus } from './types';
 import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
 const initialSeats: Seat[] = Array.from({ length: 9 }, (_, i) => ({
@@ -213,7 +214,7 @@ export const createBooking = async (
             }
             ride = generatedRide;
         } else {
-            ride = rideDoc.data() as Ride;
+            ride = { ...generateRides().find(r => r.id === bookingData.rideId)!, ...rideDoc.data() } as Ride;
         }
 
         bookingData.seats.forEach(seatNumber => {
@@ -249,6 +250,30 @@ export const createBooking = async (
         bookingTime: (newBookingData!.bookingTime as Timestamp).toDate()
     } as Booking;
 };
+
+
+export const updateRideSeats = async (rideId: string, seatNumbers: number[], newStatus: SeatStatus): Promise<void> => {
+     const rideRef = doc(db, 'rides', rideId);
+      await runTransaction(db, async (transaction) => {
+        const rideDoc = await transaction.get(rideRef);
+         let ride: Ride;
+
+        if (!rideDoc.exists()) {
+            const generatedRide = generateRides().find(r => r.id === rideId);
+            if (!generatedRide) throw new Error("Ride not found for seat update");
+            ride = generatedRide;
+        } else {
+            ride = { ...generateRides().find(r => r.id === rideId)!, ...rideDoc.data() } as Ride;
+        }
+
+        const newSeats = ride.seats.map(seat => 
+            seatNumbers.includes(seat.number) ? { ...seat, status: newStatus } : seat
+        );
+        
+        transaction.set(rideRef, { seats: newSeats }, { merge: true });
+    });
+}
+
 
 export const getUserProfile = async (userId: string): Promise<User | null> => {
     const userDocRef = doc(db, 'users', userId);

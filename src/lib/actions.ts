@@ -1,11 +1,13 @@
+
 'use server';
 
 import { z } from 'zod';
-import { createBooking } from './data';
+import { createBooking, updateRideSeats } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { storage } from './firebase';
+import { storage, db } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const BookingFormSchema = z.object({
   rideId: z.string(),
@@ -98,4 +100,36 @@ export async function processBooking(prevState: BookingState, formData: FormData
   revalidatePath(`/booking/${rideId}`);
   // Don't redirect here, let the client-side handle it after showing a toast.
   return { message: `Booking successful! Your request for seat(s) ${seats.join(', ')} is pending confirmation.` };
+}
+
+
+export async function updateBookingStatus(
+    bookingId: string,
+    rideId: string,
+    seats: number[],
+    newStatus: 'confirmed' | 'cancelled'
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const bookingRef = doc(db, 'bookings', bookingId);
+
+        // If confirming, update the seats on the ride to 'booked'
+        if (newStatus === 'confirmed') {
+            await updateRideSeats(rideId, seats, 'booked');
+        } else if (newStatus === 'cancelled') {
+             // If cancelling, make the seats available again
+            await updateRideSeats(rideId, seats, 'available');
+        }
+
+        // Update the booking status
+        await updateDoc(bookingRef, { status: newStatus });
+
+        revalidatePath('/admin');
+        revalidatePath('/my-bookings');
+
+        return { success: true, message: `Booking has been ${newStatus}.` };
+    } catch (error) {
+        console.error('Error updating booking status:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+        return { success: false, message: errorMessage };
+    }
 }

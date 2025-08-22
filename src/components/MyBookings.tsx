@@ -18,6 +18,15 @@ function BookingCard({ booking }: { booking: Booking }) {
     const ride = booking.rideDetails;
     const rideDate = format(new Date(ride.date), "MMMM d, yyyy");
 
+    const getStatusBadgeVariant = (status: Booking['status']) => {
+        switch (status) {
+            case 'confirmed': return 'default';
+            case 'pending-payment': return 'secondary';
+            case 'cancelled': return 'destructive';
+            default: return 'outline';
+        }
+    }
+
     return (
         <Card className="mb-4 shadow-md transition-all hover:shadow-lg">
             <CardHeader className="pb-4">
@@ -31,7 +40,7 @@ function BookingCard({ booking }: { booking: Booking }) {
                             {rideDate}
                         </CardDescription>
                     </div>
-                     <Badge variant="secondary">NPR {ride.price.toLocaleString()}</Badge>
+                     <Badge variant={getStatusBadgeVariant(booking.status)} className="capitalize">{booking.status.replace('-', ' ')}</Badge>
                 </div>
             </CardHeader>
             <CardContent>
@@ -80,8 +89,19 @@ export function MyBookings({ userId }: { userId: string }) {
   }, [userId]);
 
   const now = new Date();
-  const pendingBookings = bookings.filter(b => b.rideDetails && new Date(b.rideDetails.date) >= now);
-  const completedBookings = bookings.filter(b => b.rideDetails && new Date(b.rideDetails.date) < now);
+  
+  const upcomingBookings = bookings.filter(b => 
+    b.status === 'confirmed' && b.rideDetails && new Date(b.rideDetails.date) >= now
+  );
+  
+  const pendingConfirmationBookings = bookings.filter(b => 
+    b.status === 'pending-payment' && b.rideDetails && new Date(b.rideDetails.date) >= now
+  );
+
+  const pastBookings = bookings.filter(b => 
+      !b.rideDetails || new Date(b.rideDetails.date) < now || b.status === 'cancelled'
+  );
+
 
   const renderBookingList = (list: Booking[]) => {
       if (isLoading) {
@@ -127,16 +147,20 @@ export function MyBookings({ userId }: { userId: string }) {
             <CardDescription>View your upcoming and past ride reservations.</CardDescription>
         </CardHeader>
         <CardContent>
-            <Tabs defaultValue="pending">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="pending">Pending ({pendingBookings.length})</TabsTrigger>
-                    <TabsTrigger value="completed">Completed ({completedBookings.length})</TabsTrigger>
+            <Tabs defaultValue="upcoming">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="upcoming">Upcoming ({upcomingBookings.length})</TabsTrigger>
+                    <TabsTrigger value="pending">Pending ({pendingConfirmationBookings.length})</TabsTrigger>
+                    <TabsTrigger value="past">Past Trips ({pastBookings.length})</TabsTrigger>
                 </TabsList>
-                <TabsContent value="pending" className="mt-4">
-                    {renderBookingList(pendingBookings)}
+                <TabsContent value="upcoming" className="mt-4">
+                    {renderBookingList(upcomingBookings)}
                 </TabsContent>
-                <TabsContent value="completed" className="mt-4">
-                    {renderBookingList(completedBookings)}
+                <TabsContent value="pending" className="mt-4">
+                    {renderBookingList(pendingConfirmationBookings)}
+                </TabsContent>
+                <TabsContent value="past" className="mt-4">
+                    {renderBookingList(pastBookings)}
                 </TabsContent>
             </Tabs>
         </CardContent>
