@@ -43,7 +43,10 @@ export default function TicketPage({ params }: { params: { bookingId: string }})
             setIsLoading(true);
             const bookingData = await getBookingById(bookingId);
             if (!bookingData) {
-                notFound();
+                // Using notFound() in a client component can be tricky.
+                // A better approach for client components is redirecting or showing a message.
+                // For now, we'll just stop loading and show nothing, but this could be improved.
+                console.error("Booking not found");
             }
             setBooking(bookingData);
             setIsLoading(false);
@@ -61,7 +64,12 @@ export default function TicketPage({ params }: { params: { bookingId: string }})
                 <div className="p-2">
                     <TicketContent booking={booking} />
                 </div>
-            ) : null}
+            ) : (
+                 <div className="text-center">
+                    <h1 className="text-2xl font-bold">Booking Not Found</h1>
+                    <p className="text-muted-foreground">The requested booking could not be found.</p>
+                </div>
+            )}
         </div>
     );
 }
