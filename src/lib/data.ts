@@ -227,7 +227,24 @@ export const getRideById = async (id: string): Promise<Ride | undefined> => {
             allRides.push(dailyRide);
         });
     }
-    return allRides.find(ride => ride.id === id);
+    const ride = allRides.find(ride => ride.id === id);
+
+    if (!ride) {
+        return undefined;
+    }
+
+    // Add filtering logic to ensure ride is not in the past
+    const now = getNepalTime();
+    const rideDate = parseISO(ride.date);
+
+    if (isToday(rideDate)) {
+        const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
+        if (departureDateTime < now) {
+            return undefined; // Ride has already departed
+        }
+    }
+
+    return ride;
 };
 
 export const getBookings = async (): Promise<Booking[]> => {
