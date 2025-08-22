@@ -98,18 +98,19 @@ export const getRides = async (filters?: { from?: string; to?: string; date?: st
     return new Promise((resolve) => {
         setTimeout(() => {
             let filteredRides = rides;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Filter for upcoming rides first
+            filteredRides = rides.filter(ride => new Date(ride.date) >= today);
 
             if (filters && (filters.from || filters.to || filters.date)) {
-                 filteredRides = rides.filter(ride => {
+                 filteredRides = filteredRides.filter(ride => {
                     const fromMatch = !filters.from || ride.from === filters.from;
                     const toMatch = !filters.to || ride.to === filters.to;
                     const dateMatch = !filters.date || ride.date === filters.date;
                     return fromMatch && toMatch && dateMatch;
                 });
-            } else {
-                 const today = new Date();
-                 today.setHours(0, 0, 0, 0); 
-                 filteredRides = rides.filter(ride => new Date(ride.date) >= today);
             }
            
             // Sort by date
