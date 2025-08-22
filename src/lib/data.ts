@@ -79,8 +79,6 @@ export const getRides = async (
     const ridesCol = collection(db, 'rides');
     
     // Base query constraints
-    let q = query(ridesCol, orderBy('date'), orderBy('departureTime'));
-
     const queryConstraints = [];
 
     if (filters.date) {
@@ -101,7 +99,7 @@ export const getRides = async (
         queryConstraints.push(where('to', '==', filters.to));
     }
 
-    q = query(ridesCol, ...queryConstraints, orderBy('date'), orderBy('departureTime'));
+    const q = query(ridesCol, ...queryConstraints, orderBy('date'), orderBy('departureTime'));
 
     const rideSnapshot = await getDocs(q);
     const rideList = rideSnapshot.docs.map(doc => {
@@ -112,28 +110,6 @@ export const getRides = async (
             date: format((data.date as Timestamp).toDate(), 'yyyy-MM-dd'),
         } as Ride;
     });
-
-    // If filtering for today (or no date is provided), filter out past departure times
-     if (!filters.date || format(new Date(filters.date), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')) {
-        const now = new Date();
-        const todayStr = format(now, 'yyyy-MM-dd');
-        
-        return rideList.filter(ride => {
-            if (ride.date !== todayStr) {
-                // If the ride is for a future date, always include it
-                return true;
-            }
-            // If the ride is for today, check the departure time
-            try {
-                // The time is stored as "6:00 AM". The 'h:mm a' format token correctly handles this.
-                const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd h:mm a', new Date());
-                return isAfter(departureDateTime, now);
-            } catch (e) {
-                console.error(`Could not parse date for ride ${ride.id}: ${ride.date} ${ride.departureTime}`);
-                return false;
-            }
-        });
-    }
 
     return rideList;
 };
