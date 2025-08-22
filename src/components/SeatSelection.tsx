@@ -122,24 +122,27 @@ export function SeatSelection({ ride }: { ride: Ride }) {
 
   const renderSeats = () => {
     const seatLayout = [];
+    const frontSeat = ride.seats[0];
 
-    // Driver seat
+    // Front seat on the left
+     seatLayout.push(
+        <div key={`seat-${frontSeat.number}`} className="col-start-1">
+            <Seat
+                seat={frontSeat}
+                isSelected={selectedSeats.includes(frontSeat.number)}
+                onSelect={handleSelectSeat}
+            />
+        </div>
+    );
+    
+    // Driver seat on the right
     seatLayout.push(
-        <div key="driver" className="flex flex-col items-center justify-center text-muted-foreground col-start-2">
+        <div key="driver" className="flex flex-col items-center justify-center text-muted-foreground col-start-4">
             <SteeringWheel className="w-6 h-6 sm:w-8 sm:h-8" />
             <span className="text-xs font-semibold">Driver</span>
         </div>
     );
-    // Front seat
-    const frontSeat = ride.seats[0];
-     seatLayout.push(
-        <Seat
-            key={frontSeat.number}
-            seat={frontSeat}
-            isSelected={selectedSeats.includes(frontSeat.number)}
-            onSelect={handleSelectSeat}
-        />
-    );
+
     // Spacer for full row
     seatLayout.push(<div key="spacer-1" className="col-span-4 h-4"></div>);
 
