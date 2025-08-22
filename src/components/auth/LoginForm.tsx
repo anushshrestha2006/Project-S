@@ -47,9 +47,14 @@ export function LoginForm() {
       const firebaseUser = userCredential.user;
 
       // Get user profile from Firestore
-      const user = await getUserProfile(firebaseUser.uid);
+      let user = await getUserProfile(firebaseUser.uid);
 
       if (user) {
+        // Force admin role for specific email
+        if (user.email.toLowerCase() === 'anushshrestha8683@gmail.com') {
+          user.role = 'admin';
+        }
+
         localStorage.setItem('sumo-sewa-user', JSON.stringify(user));
         toast({
           title: 'Login Successful',
