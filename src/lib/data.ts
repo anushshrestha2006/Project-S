@@ -125,48 +125,46 @@ export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
     
-    // 1. Filter by route (from/to) first
-    let filteredByRoute = [...ridesDB];
+    // Create a fresh copy to avoid in-memory data modification across requests.
+    let availableRides = JSON.parse(JSON.stringify(ridesDB));
+    
+    // 1. Filter by route (from/to)
     if (filters.from && filters.from !== 'all') {
-        filteredByRoute = filteredByRoute.filter(ride => ride.from === filters.from);
+        availableRides = availableRides.filter(ride => ride.from === filters.from);
     }
     if (filters.to && filters.to !== 'all') {
-        filteredByRoute = filteredByRoute.filter(ride => ride.to === filters.to);
+        availableRides = availableRides.filter(ride => ride.to === filters.to);
     }
     
     const now = getNepalTime();
     const todayStr = format(now, 'yyyy-MM-dd');
 
-    // 2. Filter by date and time logic
-    let finalRideList = filteredByRoute.filter(ride => {
-        const rideDate = parseISO(ride.date);
-        
-        // If a specific date is selected in the filter
+    // 2. Filter by date logic
+    let finalRideList = availableRides.filter(ride => {
+        // If a specific date is selected, filter by that date.
         if (filters.date) {
-            // Show only rides for that date
             return ride.date === filters.date;
         }
-
-        // --- If no specific date is selected (default view) ---
-
-        // Exclude rides from dates that are completely in the past
-        if (ride.date < todayStr) {
-            return false;
-        }
-
-        // For rides scheduled for today, check if departure time has passed
-        if (ride.date === todayStr) {
-            const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
-            // Only include the ride if its departure time is in the future
-            if (departureDateTime < now) {
-                return false;
-            }
-        }
-        
-        // Include all future rides and valid today's rides
-        return true;
+        // If no date is selected, show rides from today onwards.
+        return ride.date >= todayStr;
     });
 
+    // 3. Filter by time logic (Always apply for today's rides)
+    finalRideList = finalRideList.filter(ride => {
+        // If the ride is for a future date, always include it.
+        if (ride.date > todayStr) {
+            return true;
+        }
+        // If the ride is for today, check if departure time has passed.
+        if (ride.date === todayStr) {
+            const rideDate = parseISO(ride.date);
+            const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
+            // Only include the ride if its departure time is in the future.
+            return departureDateTime > now;
+        }
+        // Exclude rides from past dates (this case is redundant due to step 2 but safe to have).
+        return false;
+    });
 
     // Sort the final results
     finalRideList.sort((a, b) => {
