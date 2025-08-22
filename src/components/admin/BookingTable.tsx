@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from "react";
-import type { Booking, User } from "@/lib/types";
+import type { Booking } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search } from "lucide-react";
+import { Download, Search, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { auth } from "@/lib/firebase";
@@ -20,6 +20,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { getUserProfile, getBookings } from "@/lib/data";
 import { Timestamp } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
     const [bookings, setBookings] = useState(initialBookings);
@@ -35,7 +36,6 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 if (profile?.role !== 'admin') {
                     router.replace('/');
                 } else {
-                    // Fetch latest bookings when admin is confirmed
                     const freshBookings = await getBookings();
                     setBookings(freshBookings);
                 }
@@ -56,7 +56,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     }, [bookings, nameFilter, phoneFilter, rideIdFilter]);
 
     const handleExport = () => {
-        const headers = ["Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date"];
+        const headers = ["Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Transaction ID"];
         const csvRows = [headers.join(",")];
         
         filteredBookings.forEach(booking => {
@@ -67,7 +67,10 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 `"${booking.passengerName}"`,
                 booking.passengerPhone,
                 `"${booking.seats.join(" ")}"`,
-                format(bookingTime, "yyyy-MM-dd HH:mm")
+                format(bookingTime, "yyyy-MM-dd HH:mm"),
+                booking.status,
+                booking.paymentMethod || "",
+                booking.transactionId || ""
             ];
             csvRows.push(row.join(","));
         });
@@ -130,24 +133,45 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Booking ID</TableHead>
-                            <TableHead>Ride ID</TableHead>
+                            <TableHead>Booking Details</TableHead>
                             <TableHead>Passenger</TableHead>
-                            <TableHead>Phone</TableHead>
-                            <TableHead>Seats</TableHead>
-                            <TableHead>Date</TableHead>
+                            <TableHead>Payment</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredBookings.length > 0 ? (
                             filteredBookings.map(booking => (
                                 <TableRow key={booking.id}>
-                                    <TableCell className="font-medium">{booking.id.substring(0, 7)}...</TableCell>
-                                    <TableCell>{booking.rideId}</TableCell>
-                                    <TableCell>{booking.passengerName}</TableCell>
-                                    <TableCell>{booking.passengerPhone}</TableCell>
-                                    <TableCell>{booking.seats.join(', ')}</TableCell>
-                                    <TableCell>{formatBookingTime(booking.bookingTime)}</TableCell>
+                                    <TableCell>
+                                        <div className="font-medium">Ride ID: {booking.rideId}</div>
+                                        <div className="text-xs text-muted-foreground">Booking ID: {booking.id.substring(0, 7)}...</div>
+                                        <div className="text-xs text-muted-foreground">Seats: {booking.seats.join(', ')}</div>
+                                        <div className="text-xs text-muted-foreground mt-1">{formatBookingTime(booking.bookingTime)}</div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div>{booking.passengerName}</div>
+                                        <div className="text-sm text-muted-foreground">{booking.passengerPhone}</div>
+                                    </TableCell>
+                                     <TableCell>
+                                        <div className="font-medium capitalize">{booking.paymentMethod}</div>
+                                        <div className="text-xs text-muted-foreground">{booking.transactionId || 'N/A'}</div>
+                                    </TableCell>
+                                     <TableCell>
+                                        <Badge variant={booking.status === 'pending-payment' ? 'destructive' : 'secondary'}>
+                                            {booking.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                       {booking.paymentScreenshotUrl && (
+                                            <Button asChild variant="outline" size="sm">
+                                                <a href={booking.paymentScreenshotUrl} target="_blank" rel="noopener noreferrer">
+                                                    View Screenshot <ExternalLink className="ml-2 h-3 w-3"/>
+                                                </a>
+                                            </Button>
+                                       )}
+                                    </TableCell>
                                 </TableRow>
                             ))
                         ) : (

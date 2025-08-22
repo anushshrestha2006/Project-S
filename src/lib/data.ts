@@ -85,8 +85,6 @@ export const getRides = async (
     if (filters.date) {
         finalRideList = allRides.filter(ride => ride.date === filters.date);
     } else {
-        // Default view: show rides for today that haven't departed yet.
-        // If all of today's rides have departed, show tomorrow's rides instead.
         const todayRides = allRides.filter(ride => ride.date === todayStr);
         const availableTodayRides = todayRides.filter(ride => {
             const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
@@ -96,12 +94,10 @@ export const getRides = async (
         if (availableTodayRides.length > 0) {
             finalRideList = availableTodayRides;
         } else {
-            // If no rides are available today, default to showing tomorrow's schedule
             finalRideList = allRides.filter(ride => ride.date === tomorrowStr);
         }
     }
 
-    // Always filter out past rides for the selected date
     finalRideList = finalRideList.filter(ride => {
         const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
         return departureDateTime > now;
@@ -128,10 +124,9 @@ export const getRideById = async (id: string, includePast = false): Promise<Ride
     
     if (rideSnap.exists()) {
         const ride = rideSnap.data() as Ride;
-         // Even if it exists in Firestore, we merge with template to get all properties
         const allRides = generateRides();
         const templateRide = allRides.find(r => r.id === id);
-        if (!templateRide) return undefined; // Should not happen if ID is correct
+        if (!templateRide) return undefined; 
         
         const mergedRide = { ...templateRide, ...ride };
         
@@ -145,7 +140,6 @@ export const getRideById = async (id: string, includePast = false): Promise<Ride
         return { id: rideSnap.id, ...mergedRide };
 
     } else {
-        // If not in firestore, it must be from our generated list
         const baseRide = generateRides().find(r => r.id === id);
         if(!baseRide) return undefined;
         
@@ -156,7 +150,6 @@ export const getRideById = async (id: string, includePast = false): Promise<Ride
                 return undefined;
             }
         }
-        // Don't create it here, create it on booking.
         return baseRide as Ride;
     }
 };
@@ -198,7 +191,7 @@ export const getBookingsByUserId = async (userId: string): Promise<Booking[]> =>
         })
     );
 
-    return bookingsWithRides.filter(b => b.rideDetails); // Filter out bookings where ride couldn't be found
+    return bookingsWithRides.filter(b => b.rideDetails); 
 };
 
 
@@ -214,13 +207,11 @@ export const createBooking = async (
         let ride: Ride;
 
         if (!rideDoc.exists()) {
-             // If ride doesn't exist in Firestore, get it from our generator
             const generatedRide = generateRides().find(r => r.id === bookingData.rideId);
             if (!generatedRide) {
                 throw new Error("Ride schedule not found!");
             }
             ride = generatedRide;
-            // No need to create it here, we will set it with the transaction
         } else {
             ride = rideDoc.data() as Ride;
         }
@@ -234,11 +225,10 @@ export const createBooking = async (
 
         const newSeats = ride.seats.map(seat =>
             bookingData.seats.includes(seat.number)
-                ? { ...seat, status: 'booked' }
+                ? { ...seat, status: 'locked' } // Mark as locked, not booked, until payment is confirmed
                 : seat
         );
         
-        // Use set with merge:true to create or update the ride document
         transaction.set(rideRef, { seats: newSeats }, { merge: true });
 
         const bookingWithTimestamp = {
@@ -272,5 +262,3 @@ export const getUserProfile = async (userId: string): Promise<User | null> => {
     }
     return null;
 }
-
-    

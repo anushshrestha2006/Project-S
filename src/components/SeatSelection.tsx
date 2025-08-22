@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { processBooking, type BookingState } from '@/lib/actions';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
+import { PaymentDialog } from './PaymentDialog';
 
 interface SeatProps {
   seat: SeatType;
@@ -62,26 +63,23 @@ function Seat({ seat, isSelected, onSelect }: SeatProps) {
   );
 }
 
-function SubmitButton() {
-    const { pending } = useFormStatus();
-    return (
-        <Button type="submit" disabled={pending} className="w-full text-lg py-6">
-            {pending ? 'Processing...' : 'Confirm Booking'}
-        </Button>
-    )
-}
 
 export function SeatSelection({ ride }: { ride: Ride }) {
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [passengerInfo, setPassengerInfo] = useState({ name: '', phone: '' });
+  const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [formErrors, setFormErrors] = useState<{name?: string, phone?: string}>({});
+  
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    // In a real app, you'd get this from a proper auth context
     const storedUser = localStorage.getItem('sumo-sewa-user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      setPassengerInfo({ name: parsedUser.name || '', phone: parsedUser.phoneNumber || '' });
     }
   }, []);
 
@@ -93,30 +91,24 @@ export function SeatSelection({ ride }: { ride: Ride }) {
     );
   };
   
-  const initialState: BookingState = { message: null, errors: {} };
-  const [state, dispatch] = useActionState(processBooking, initialState);
-
-  useEffect(() => {
-    if (state.message && !state.errors) {
-        toast({
-            title: "Booking Confirmed!",
-            description: state.message,
-            variant: 'default',
-            className: "bg-green-500 border-green-500 text-white"
-        });
-        setSelectedSeats([]);
-        // Refresh the page to get latest seat status and redirect
-        router.refresh();
-        setTimeout(() => router.push('/'), 2000);
-
-    } else if (state.message && state.errors) {
-        toast({
-            variant: "destructive",
-            title: "Booking Failed",
-            description: state.errors.server?.[0] || state.errors.seats?.[0] || "An unexpected error occurred."
-        })
+  const handleProceedToPayment = () => {
+    const errors: {name?: string, phone?: string} = {};
+    if (!passengerInfo.name || passengerInfo.name.length < 2) {
+      errors.name = 'Passenger name must be at least 2 characters.';
     }
-  }, [state, toast, router]);
+    if (!passengerInfo.phone || !/^\d{10}$/.test(passengerInfo.phone)) {
+        errors.phone = 'Please enter a valid 10-digit phone number.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
+    setPaymentDialogOpen(true);
+  };
+
 
   const totalPrice = selectedSeats.length * ride.price;
 
@@ -124,8 +116,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
     const seatLayout = [];
     const frontSeat = ride.seats[0];
 
-    // Front seat on the left
-     seatLayout.push(
+    seatLayout.push(
         <div key={`seat-${frontSeat.number}`} className="col-start-1">
             <Seat
                 seat={frontSeat}
@@ -135,7 +126,6 @@ export function SeatSelection({ ride }: { ride: Ride }) {
         </div>
     );
     
-    // Driver seat on the right
     seatLayout.push(
         <div key="driver" className="flex flex-col items-center justify-center text-muted-foreground col-start-4">
             <SteeringWheel className="w-6 h-6 sm:w-8 sm:h-8" />
@@ -143,9 +133,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
         </div>
     );
 
-    // Spacer for full row
     seatLayout.push(<div key="spacer-1" className="col-span-4 h-4"></div>);
-
 
     ride.seats.slice(1).forEach((seat) => {
         seatLayout.push(
@@ -161,6 +149,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
   };
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
             <Card>
@@ -193,20 +182,16 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                             <p className="text-yellow-800">Please <a href="/login" className="font-bold underline">login</a> or <a href="/signup" className="font-bold underline">sign up</a> to complete your booking.</p>
                         </div>
                     ) : (
-                    <form action={dispatch} className="space-y-4">
-                        <input type="hidden" name="rideId" value={ride.id} />
-                        <input type="hidden" name="seats" value={JSON.stringify(selectedSeats)} />
-                        <input type="hidden" name="userId" value={user.id} />
-                        
+                    <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="passengerName">Passenger Name</Label>
-                            <Input id="passengerName" name="passengerName" placeholder="Full Name" defaultValue={user?.name} required />
-                            {state?.errors?.passengerName && <p className="text-xs text-destructive">{state.errors.passengerName[0]}</p>}
+                            <Input id="passengerName" name="passengerName" placeholder="Full Name" value={passengerInfo.name} onChange={e => setPassengerInfo({...passengerInfo, name: e.target.value})} required />
+                            {formErrors.name && <p className="text-xs text-destructive">{formErrors.name}</p>}
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="passengerPhone">Phone Number</Label>
-                            <Input id="passengerPhone" name="passengerPhone" placeholder="98XXXXXXXX" defaultValue={user?.phoneNumber} required />
-                             {state?.errors?.passengerPhone && <p className="text-xs text-destructive">{state.errors.passengerPhone[0]}</p>}
+                            <Input id="passengerPhone" name="passengerPhone" placeholder="98XXXXXXXX" value={passengerInfo.phone} onChange={e => setPassengerInfo({...passengerInfo, phone: e.target.value})} required />
+                             {formErrors.phone && <p className="text-xs text-destructive">{formErrors.phone}</p>}
                         </div>
 
                         <div className="border-t pt-4 space-y-3">
@@ -221,16 +206,34 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                         </div>
 
                         {selectedSeats.length > 0 ? (
-                            <SubmitButton/>
+                            <Button onClick={handleProceedToPayment} className="w-full text-lg py-6">
+                                Proceed to Payment
+                            </Button>
                         ) : (
                              <Button disabled className="w-full text-lg py-6">Select a seat to book</Button>
                         )}
-                        {state?.errors?.seats && <p className="text-sm text-destructive text-center pt-2">{state.errors.seats[0]}</p>}
-                    </form>
+                         {selectedSeats.length > 0 && formErrors.name && <p className="text-sm text-destructive text-center pt-2">Please fix the errors above.</p>}
+                    </div>
                     )}
                 </CardContent>
             </Card>
         </div>
     </div>
+    {user && (
+         <PaymentDialog
+            isOpen={isPaymentDialogOpen}
+            setIsOpen={setPaymentDialogOpen}
+            bookingDetails={{
+                rideId: ride.id,
+                userId: user.id,
+                seats: selectedSeats,
+                passengerName: passengerInfo.name,
+                passengerPhone: passengerInfo.phone,
+                totalPrice: totalPrice,
+            }}
+        />
+    )}
+   
+    </>
   );
 }

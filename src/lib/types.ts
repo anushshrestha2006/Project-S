@@ -20,6 +20,8 @@ export type Ride = {
   date: string; // YYYY-MM-DD
 };
 
+export type BookingStatus = 'confirmed' | 'pending-payment' | 'cancelled';
+
 export type Booking = {
   id: string;
   rideId: string;
@@ -29,6 +31,10 @@ export type Booking = {
   passengerName: string;
   passengerPhone: string;
   rideDetails?: Ride;
+  status: BookingStatus;
+  paymentMethod?: 'esewa' | 'khalti' | 'imepay';
+  paymentScreenshotUrl?: string;
+  transactionId?: string;
 };
 
 export type User = {
@@ -38,5 +44,4 @@ export type User = {
   phoneNumber?: string;
   role: 'user' | 'admin';
   bookings?: Pick<Booking, 'rideId' | 'seats'>[];
-  photoURL?: string;
 };
