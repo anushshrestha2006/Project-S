@@ -29,12 +29,14 @@ import { Calendar } from "../ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useDebouncedCallback } from "use-debounce";
 
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
     const [bookings, setBookings] = useState(initialBookings);
     const [dateFilter, setDateFilter] = useState<Date | undefined>();
     const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [bookingIdFilter, setBookingIdFilter] = useState<string>("");
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
@@ -57,6 +59,10 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         });
         return () => unsubscribe();
     }, [router]);
+    
+    const handleBookingIdChange = useDebouncedCallback((value: string) => {
+        setBookingIdFilter(value);
+    }, 300);
 
     const filteredBookings = useMemo(() => {
         return bookings.filter(booking => {
@@ -65,9 +71,11 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
             
             const dateMatch = !dateFilter || format(rideDate, 'yyyy-MM-dd') === format(dateFilter, 'yyyy-MM-dd');
             const statusMatch = statusFilter === 'all' || booking.status === statusFilter;
-            return dateMatch && statusMatch;
+            const idMatch = !bookingIdFilter || booking.id.toLowerCase().includes(bookingIdFilter.toLowerCase());
+
+            return dateMatch && statusMatch && idMatch;
         });
-    }, [bookings, dateFilter, statusFilter]);
+    }, [bookings, dateFilter, statusFilter, bookingIdFilter]);
 
     const handleStatusUpdate = (bookingId: string, rideId: string, seats: number[], newStatus: 'confirmed' | 'cancelled') => {
         startTransition(async () => {
@@ -144,6 +152,19 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     return (
         <div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end">
+                <div className="grid w-full items-center gap-1.5 md:col-span-2">
+                    <Label htmlFor="bookingId">Search by Booking ID</Label>
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            id="bookingId"
+                            placeholder="Enter Booking ID..."
+                            className="pl-8"
+                            onChange={(e) => handleBookingIdChange(e.target.value)}
+                        />
+                    </div>
+                </div>
+
                 <div className="grid w-full items-center gap-1.5">
                     <Label htmlFor="date">Filter by Ride Date</Label>
                     <Popover>
@@ -194,7 +215,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Ride & Booking Details</TableHead>
+                            <TableHead>Ride &amp; Booking Details</TableHead>
                             <TableHead>Passenger</TableHead>
                             <TableHead>Payment</TableHead>
                             <TableHead>Status</TableHead>
@@ -218,6 +239,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                         )}
                                         <div className="text-xs text-muted-foreground mt-2">Seats: {booking.seats.join(', ')}</div>
                                         <div className="text-xs text-muted-foreground">Booked: {formatBookingTime(booking.bookingTime)}</div>
+                                        <div className="text-xs text-muted-foreground break-all">ID: {booking.id}</div>
                                     </TableCell>
                                     <TableCell>
                                         <div>{booking.passengerName}</div>
