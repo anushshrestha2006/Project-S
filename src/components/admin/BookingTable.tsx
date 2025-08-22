@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useTransition } from "react";
-import type { Booking } from "@/lib/types";
+import type { Booking, User } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -38,6 +38,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     const [dateFilter, setDateFilter] = useState<Date | undefined>();
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [bookingIdFilter, setBookingIdFilter] = useState<string>("");
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
@@ -48,6 +49,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const profile = await getUserProfile(user.uid);
+                setCurrentUser(profile);
                 if (profile?.role !== 'admin') {
                     router.replace('/');
                 } else {
@@ -210,7 +212,9 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                         <Download className="mr-2 h-4 w-4" />
                         Export
                     </Button>
-                    <ClearBookingsButton onClear={() => setBookings([])} />
+                    {currentUser?.email === 'anushshrestha8683@gmail.com' && (
+                        <ClearBookingsButton onClear={() => setBookings([])} />
+                    )}
                  </div>
             </div>
             <div className="rounded-md border">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -108,12 +109,14 @@ export default function Header() {
                             Booking Panel
                         </DropdownMenuItem>
                       </Link>
-                      <Link href="/admin/users">
-                        <DropdownMenuItem>
-                            <Users className="mr-2 h-4 w-4" />
-                            User Management
-                        </DropdownMenuItem>
-                      </Link>
+                       {user.email === 'anushshrestha8683@gmail.com' && (
+                          <Link href="/admin/users">
+                            <DropdownMenuItem>
+                                <Users className="mr-2 h-4 w-4" />
+                                User Management
+                            </DropdownMenuItem>
+                          </Link>
+                       )}
                     </>
                   )}
                   <DropdownMenuSeparator />
