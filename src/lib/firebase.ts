@@ -4,12 +4,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-    "projectId": "sumo-sewa-9z1gw",
-    "appId": "1:340934069863:web:4fb28f7ad5398403e90ec2",
-    "storageBucket": "sumo-sewa-9z1gw.appspot.com",
-    "apiKey": "AIzaSyAqVEi9NDEukcp376xP7VXXhv_CBZapSSI",
-    "authDomain": "sumo-sewa-9z1gw.firebaseapp.com",
-    "messagingSenderId": "340934069863",
+    "projectId": "sumo-sewa",
+    "appId": "1:463428358443:web:963564a983416973322079",
+    "storageBucket": "sumo-sewa.appspot.com",
+    "apiKey": "AIzaSyChh9_p27g39L9wz0n2Z_s-xcyRCpD7v9A",
+    "authDomain": "sumo-sewa.firebaseapp.com",
+    "messagingSenderId": "463428358443",
 };
 
 // Initialize Firebase
