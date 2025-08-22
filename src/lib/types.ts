@@ -26,6 +26,7 @@ export type BookingStatus = 'confirmed' | 'pending-payment' | 'cancelled';
 
 export type Booking = {
   id: string;
+  ticketId: string;
   rideId: string;
   userId: string;
   seats: number[]; // array of seat numbers

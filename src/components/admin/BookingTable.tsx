@@ -38,7 +38,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     const [dateFilter, setDateFilter] = useState<Date | undefined>();
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>("all");
-    const [bookingIdFilter, setBookingIdFilter] = useState<string>("");
+    const [ticketIdFilter, setTicketIdFilter] = useState<string>("");
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -64,8 +64,8 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         return () => unsubscribe();
     }, [router]);
     
-    const handleBookingIdChange = useDebouncedCallback((value: string) => {
-        setBookingIdFilter(value);
+    const handleTicketIdChange = useDebouncedCallback((value: string) => {
+        setTicketIdFilter(value);
     }, 300);
 
     const filteredBookings = useMemo(() => {
@@ -76,11 +76,11 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
             const dateMatch = !dateFilter || format(rideDate, 'yyyy-MM-dd') === format(dateFilter, 'yyyy-MM-dd');
             const statusMatch = statusFilter === 'all' || booking.status === statusFilter;
             const vehicleMatch = vehicleTypeFilter === 'all' || booking.rideDetails.vehicleType === vehicleTypeFilter;
-            const idMatch = !bookingIdFilter || booking.id.toLowerCase().includes(bookingIdFilter.toLowerCase());
+            const idMatch = !ticketIdFilter || booking.ticketId.toLowerCase().includes(ticketIdFilter.toLowerCase());
 
             return dateMatch && statusMatch && idMatch && vehicleMatch;
         });
-    }, [bookings, dateFilter, statusFilter, bookingIdFilter, vehicleTypeFilter]);
+    }, [bookings, dateFilter, statusFilter, ticketIdFilter, vehicleTypeFilter]);
 
     const handleStatusUpdate = (bookingId: string, rideId: string, seats: number[], newStatus: 'confirmed' | 'cancelled') => {
         startTransition(async () => {
@@ -95,13 +95,14 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     }
 
     const handleExport = () => {
-        const headers = ["Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Transaction ID", "Ride From", "Ride To", "Ride Date", "Departure Time", "Vehicle Type"];
+        const headers = ["Ticket ID", "Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Transaction ID", "Ride From", "Ride To", "Ride Date", "Departure Time", "Vehicle Type"];
         const csvRows = [headers.join(",")];
         
         filteredBookings.forEach(booking => {
             if (!booking.rideDetails) return;
             const bookingTime = booking.bookingTime instanceof Timestamp ? booking.bookingTime.toDate() : new Date(booking.bookingTime);
             const row = [
+                booking.ticketId,
                 booking.id,
                 booking.rideId,
                 `"${booking.passengerName}"`,
@@ -159,14 +160,14 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 items-end">
                 <div className="grid w-full items-center gap-1.5 lg:col-span-2">
-                    <Label htmlFor="bookingId">Search by Booking ID</Label>
+                    <Label htmlFor="ticketId">Search by Ticket ID</Label>
                     <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
-                            id="bookingId"
-                            placeholder="Enter Booking ID..."
+                            id="ticketId"
+                            placeholder="Enter Ticket ID..."
                             className="pl-8"
-                            onChange={(e) => handleBookingIdChange(e.target.value)}
+                            onChange={(e) => handleTicketIdChange(e.target.value)}
                         />
                     </div>
                 </div>
@@ -249,6 +250,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                             filteredBookings.map(booking => (
                                 <TableRow key={booking.id}>
                                     <TableCell>
+                                        <div className="font-bold">{booking.ticketId}</div>
                                         {booking.rideDetails && (
                                             <div className="font-medium flex items-center">
                                                 {booking.rideDetails.from} <ArrowRight className="mx-1 h-4 w-4" /> {booking.rideDetails.to}
@@ -265,7 +267,6 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                         )}
                                         <div className="text-xs text-muted-foreground mt-2">Seats: {booking.seats.join(', ')}</div>
                                         <div className="text-xs text-muted-foreground">Booked: {formatBookingTime(booking.bookingTime)}</div>
-                                        <div className="text-xs text-muted-foreground break-all">ID: {booking.id}</div>
                                     </TableCell>
                                     <TableCell>
                                         <div>{booking.passengerName}</div>
@@ -317,3 +318,4 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     );
 
     
+

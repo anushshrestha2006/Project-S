@@ -246,8 +246,14 @@ export const getBookingById = async (bookingId: string): Promise<Booking | null>
 }
 
 
+const generateTicketId = (bookingDate: Date, docId: string) => {
+    const datePart = format(bookingDate, 'yyMMdd');
+    const randomPart = docId.substring(0, 5).toUpperCase();
+    return `SS-${datePart}-${randomPart}`;
+};
+
 export const createBooking = async (
-  bookingData: Omit<Booking, 'id' | 'bookingTime'>
+  bookingData: Omit<Booking, 'id' | 'bookingTime' | 'ticketId'>
 ): Promise<Booking> => {
     const rideRef = doc(db, 'rides', bookingData.rideId);
     
@@ -281,14 +287,19 @@ export const createBooking = async (
         );
         
         transaction.set(rideRef, { seats: newSeats }, { merge: true });
+        
+        const newBookingRef = doc(collection(db, 'bookings'));
+        newBookingId = newBookingRef.id;
+
+        const ticketId = generateTicketId(new Date(), newBookingId);
 
         const bookingWithTimestamp = {
             ...bookingData,
-            bookingTime: Timestamp.now()
+            bookingTime: Timestamp.now(),
+            ticketId: ticketId,
         };
-        const newBookingRef = doc(collection(db, 'bookings'));
+        
         transaction.set(newBookingRef, bookingWithTimestamp);
-        newBookingId = newBookingRef.id;
     });
 
     const newBookingSnap = await getDoc(doc(db, 'bookings', newBookingId!));

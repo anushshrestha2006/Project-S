@@ -9,6 +9,7 @@ import { storage, db } from './firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { doc, updateDoc, collection } from 'firebase/firestore';
 import type { User } from './types';
+import { format } from 'date-fns';
 
 const BookingFormSchema = z.object({
   rideId: z.string(),
@@ -223,5 +224,3 @@ export async function uploadPaymentQr(prevState: any, formData: FormData): Promi
         return { success: false, message: `Upload failed: ${errorMessage}` };
     }
 }
-
-    

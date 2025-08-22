@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 export function TicketContent({ booking }: { booking: Booking }) {
     if (!booking.rideDetails) return null;
 
-    const { rideDetails: ride, passengerName, seats, status, id: bookingId } = booking;
+    const { rideDetails: ride, passengerName, seats, status, ticketId } = booking;
     const rideDate = format(new Date(ride.date), "MMMM d, yyyy");
 
     return (
@@ -79,8 +79,8 @@ export function TicketContent({ booking }: { booking: Booking }) {
                      <div className="flex items-start space-x-3">
                         <Ticket className="w-5 h-5 mt-0.5 text-primary"/>
                         <div>
-                            <p className="text-xs text-muted-foreground">Booking ID</p>
-                            <p className="font-mono text-xs font-semibold break-all">{bookingId}</p>
+                            <p className="text-xs text-muted-foreground">Ticket ID</p>
+                            <p className="font-mono text-sm font-semibold break-all">{ticketId}</p>
                         </div>
                     </div>
                 </div>
