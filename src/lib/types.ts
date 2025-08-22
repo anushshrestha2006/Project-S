@@ -1,12 +1,19 @@
+export type SeatStatus = 'available' | 'booked' | 'locked';
+
+export type Seat = {
+  number: number;
+  status: SeatStatus;
+};
+
 export type Ride = {
   id: string;
-  from: string;
-  to: string;
-  departureTime: string;
-  arrivalTime: string;
-  vehicleType: 'Scorpio' | 'Sumo' | 'Hiace';
+  from: 'Birgunj' | 'Kathmandu';
+  to: 'Birgunj' | 'Kathmandu';
+  departureTime: string; // e.g., "06:00 AM"
+  arrivalTime: string; // e.g., "02:00 PM"
+  vehicleType: 'Sumo';
   totalSeats: number;
-  bookedSeats: number[]; // Array of seat numbers that are booked
+  seats: Seat[];
   price: number;
   date: string; // YYYY-MM-DD
 };
@@ -14,9 +21,8 @@ export type Ride = {
 export type Booking = {
   id: string;
   rideId: string;
-  userId: string | null;
-  userName: string;
-  seats: number[];
+  userId: string;
+  seats: number[]; // array of seat numbers
   bookingTime: Date;
   passengerName: string;
   passengerPhone: string;
@@ -26,6 +32,7 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  role: 'user' | 'admin';
   phoneNumber?: string;
+  role: 'user' | 'admin';
+  bookings?: Pick<Booking, 'rideId' | 'seats'>[];
 };

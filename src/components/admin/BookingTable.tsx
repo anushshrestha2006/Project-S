@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
     const [bookings, setBookings] = useState(initialBookings);
@@ -51,7 +52,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 `"${booking.passengerName}"`,
                 booking.passengerPhone,
                 `"${booking.seats.join(" ")}"`,
-                booking.bookingTime.toISOString().split('T')[0]
+                format(booking.bookingTime, "yyyy-MM-dd HH:mm")
             ];
             csvRows.push(row.join(","));
         });
@@ -62,7 +63,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         if (link.download !== undefined) {
             const url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", "bookings.csv");
+            link.setAttribute("download", `sumo-sewa-bookings-${format(new Date(), "yyyy-MM-dd")}.csv`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -73,12 +74,15 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
-                <Input 
-                    placeholder="Filter by name, phone, or ride..."
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
-                    className="max-w-sm"
-                />
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Filter by name, phone, or ride..."
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        className="max-w-sm pl-10"
+                    />
+                </div>
                 <Button onClick={handleExport}>
                     <Download className="mr-2 h-4 w-4" />
                     Export CSV
@@ -105,7 +109,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                     <TableCell>{booking.passengerName}</TableCell>
                                     <TableCell>{booking.passengerPhone}</TableCell>
                                     <TableCell>{booking.seats.join(', ')}</TableCell>
-                                    <TableCell>{new Date(booking.bookingTime).toLocaleDateString()}</TableCell>
+                                    <TableCell>{format(booking.bookingTime, "PPpp")}</TableCell>
                                 </TableRow>
                             ))
                         ) : (

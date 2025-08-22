@@ -3,7 +3,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -18,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@/lib/types';
+import { Mail, Lock } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -37,40 +37,38 @@ export function LoginForm() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // Mock authentication
+    // This is mock authentication. Replace with Firebase Auth.
+    let user: User | null = null;
     if (values.email === 'admin@sumosewa.com' && values.password === 'adminpass') {
-      const adminUser: User = {
-        id: 'adminuser',
+       user = {
+        id: 'admin-user-id',
         name: 'Admin User',
         email: 'admin@sumosewa.com',
         role: 'admin',
       };
-      localStorage.setItem('sumo-sewa-user', JSON.stringify(adminUser));
-      toast({
-        title: 'Login Successful',
-        description: 'Welcome back, Admin!',
-      });
-      router.push('/admin');
-    } else if (values.password === 'password') {
-        // Mock user login
-        const regularUser: User = {
-            id: 'user123',
+    } else if (values.password === 'password123') { // Mock user login
+        user = {
+            id: 'mock-user-id',
             name: 'Test User',
             email: values.email,
             role: 'user',
+            phoneNumber: '9800000000'
         }
-        localStorage.setItem('sumo-sewa-user', JSON.stringify(regularUser));
-        toast({
-            title: 'Login Successful',
-            description: 'Welcome back!',
-        });
-        router.push('/');
     }
-    else {
+
+    if (user) {
+      localStorage.setItem('sumo-sewa-user', JSON.stringify(user));
+      toast({
+        title: 'Login Successful',
+        description: `Welcome back, ${user.name}!`,
+      });
+      router.push(user.role === 'admin' ? '/admin' : '/');
+      router.refresh();
+    } else {
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: 'Invalid email or password.',
+        description: 'Invalid email or password. Please try again.',
       });
     }
   }
@@ -84,9 +82,12 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="name@example.com" {...field} />
-              </FormControl>
+               <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <FormControl>
+                  <Input placeholder="name@example.com" {...field} className="pl-10" />
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}
@@ -97,22 +98,19 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
+               <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} className="pl-10"/>
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
-          Login
+        <Button type="submit" className="w-full text-base py-6">
+          Log In
         </Button>
-        <div className="mt-4 text-center text-sm">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="underline">
-            Sign up
-          </Link>
-        </div>
       </form>
     </Form>
   );

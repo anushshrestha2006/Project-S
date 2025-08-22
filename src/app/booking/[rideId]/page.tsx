@@ -8,7 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { ArrowRight, Clock, Bus } from 'lucide-react';
+import { ArrowRight, Clock, Bus, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default async function BookingPage({
   params,
@@ -21,15 +22,20 @@ export default async function BookingPage({
     notFound();
   }
 
+  const rideDate = format(new Date(ride.date), "MMMM d, yyyy");
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-headline flex items-center">
              {ride.from} <ArrowRight className="mx-4 h-6 w-6" /> {ride.to}
           </CardTitle>
-          <CardDescription className="flex items-center space-x-4 pt-2">
+          <CardDescription className="flex items-center space-x-4 pt-2 text-base">
             <span className="flex items-center">
+              <Calendar className="mr-2 h-4 w-4" /> {rideDate}
+            </span>
+             <span className="flex items-center">
               <Clock className="mr-2 h-4 w-4" /> {ride.departureTime}
             </span>
              <span className="flex items-center">

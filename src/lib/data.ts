@@ -1,173 +1,78 @@
-import type { Ride, Booking, User } from './types';
+import type { Ride, Booking, User, Seat } from './types';
 import { format } from 'date-fns';
+
+const generateSeats = (totalSeats: number, bookedSeats: number[]): Seat[] => {
+  return Array.from({ length: totalSeats }, (_, i) => {
+    const seatNumber = i + 1;
+    return {
+      number: seatNumber,
+      status: bookedSeats.includes(seatNumber) ? 'booked' : 'available',
+    };
+  });
+};
 
 // Mock data
 let rides: Ride[] = [
   {
-    id: 'BKT1',
+    id: 'BKT-AM1',
     from: 'Birgunj',
     to: 'Kathmandu',
-    departureTime: '07:00 AM',
-    arrivalTime: '03:00 PM',
+    departureTime: '06:00 AM',
+    arrivalTime: '02:00 PM',
     vehicleType: 'Sumo',
     totalSeats: 12,
-    bookedSeats: [3, 4, 8],
-    price: 800,
-    date: '2024-08-01',
-  },
-  {
-    id: 'KTM1',
-    from: 'Kathmandu',
-    to: 'Birgunj',
-    departureTime: '08:00 AM',
-    arrivalTime: '04:00 PM',
-    vehicleType: 'Hiace',
-    totalSeats: 15,
-    bookedSeats: [1, 2, 5, 10, 11],
+    seats: generateSeats(12, [3, 8]),
     price: 900,
-    date: '2024-08-01',
+    date: format(new Date(), 'yyyy-MM-dd'),
   },
   {
-    id: 'BKT2',
-    from: 'Birgunj',
-    to: 'Kathmandu',
-    departureTime: '09:00 PM',
-    arrivalTime: '05:00 AM',
-    vehicleType: 'Scorpio',
-    totalSeats: 7,
-    bookedSeats: [1, 5],
-    price: 1200,
-    date: '2024-08-02',
-  },
-  {
-    id: 'KTM2',
-    from: 'Kathmandu',
-    to: 'Birgunj',
-    departureTime: '08:30 PM',
-    arrivalTime: '04:30 AM',
-    vehicleType: 'Sumo',
-    totalSeats: 12,
-    bookedSeats: [2, 6, 7, 12],
-    price: 850,
-    date: '2024-08-02',
-  },
-   {
-    id: 'BKT3',
-    from: 'Birgunj',
-    to: 'Kathmandu',
-    departureTime: '07:30 AM',
-    arrivalTime: '03:30 PM',
-    vehicleType: 'Sumo',
-    totalSeats: 12,
-    bookedSeats: [],
-    price: 800,
-    date: '2024-08-02',
-  },
-  {
-    id: 'BKT4',
-    from: 'Birgunj',
-    to: 'Kathmandu',
-    departureTime: '06:00 AM',
-    arrivalTime: '02:00 PM',
-    vehicleType: 'Sumo',
-    totalSeats: 12,
-    bookedSeats: [1, 2],
-    price: 800,
-    date: '2024-08-03',
-  },
-  {
-    id: 'BKT5',
+    id: 'BKT-AM2',
     from: 'Birgunj',
     to: 'Kathmandu',
     departureTime: '10:00 AM',
     arrivalTime: '06:00 PM',
     vehicleType: 'Sumo',
     totalSeats: 12,
-    bookedSeats: [5],
-    price: 800,
-    date: '2024-08-03',
+    seats: generateSeats(12, [1, 5, 6]),
+    price: 900,
+    date: format(new Date(), 'yyyy-MM-dd'),
   },
   {
-    id: 'KTM3',
+    id: 'KTM-AM1',
     from: 'Kathmandu',
     to: 'Birgunj',
     departureTime: '06:00 AM',
     arrivalTime: '02:00 PM',
     vehicleType: 'Sumo',
     totalSeats: 12,
-    bookedSeats: [3, 4],
-    price: 850,
-    date: '2024-08-03',
+    seats: generateSeats(12, [10, 11, 12]),
+    price: 900,
+    date: format(new Date(), 'yyyy-MM-dd'),
   },
-  {
-    id: 'KTM4',
+    {
+    id: 'KTM-AM2',
     from: 'Kathmandu',
     to: 'Birgunj',
     departureTime: '10:00 AM',
-    arrivalTime: '06:00 PM',
+    arrivalTime: '04:00 PM',
     vehicleType: 'Sumo',
     totalSeats: 12,
-    bookedSeats: [],
-    price: 850,
-    date: '2024-08-03',
+    seats: generateSeats(12, []),
+    price: 900,
+    date: format(new Date(), 'yyyy-MM-dd'),
   },
 ];
 
-let bookings: Booking[] = [
-  {
-    id: 'BOOK001',
-    rideId: 'BKT1',
-    userId: 'user1',
-    userName: 'John Doe',
-    seats: [3, 4],
-    bookingTime: new Date('2023-10-26T10:00:00Z'),
-    passengerName: 'John Doe',
-    passengerPhone: '9800000001',
-  },
-  {
-    id: 'BOOK002',
-    rideId: 'KTM1',
-    userId: 'user2',
-    userName: 'Jane Smith',
-    seats: [5],
-    bookingTime: new Date('2023-10-26T11:30:00Z'),
-    passengerName: 'Jane Smith',
-    passengerPhone: '9800000002',
-  },
-];
-
-let users: User[] = [
-    { id: 'user1', name: 'John Doe', email: 'john@example.com', role: 'user'},
-    { id: 'adminuser', name: 'Admin', email: 'admin@sumosewa.com', role: 'admin'},
-]
+let bookings: Booking[] = [];
+let users: User[] = [];
 
 // Simulate API calls
-export const getRides = async (filters?: { from?: string; to?: string; date?: string }): Promise<Ride[]> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            // Filter for upcoming rides first
-            let upcomingRides = rides.filter(ride => new Date(ride.date) >= today);
-
-            let filteredRides = upcomingRides;
-            
-            if (filters && (filters.from || filters.to || filters.date)) {
-                 filteredRides = upcomingRides.filter(ride => {
-                    const fromMatch = !filters.from || ride.from === filters.from;
-                    const toMatch = !filters.to || ride.to === filters.to;
-                    const dateMatch = !filters.date || ride.date === filters.date;
-                    return fromMatch && toMatch && dateMatch;
-                });
-            }
-           
-            // Sort by date
-            filteredRides.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-            resolve(filteredRides);
-        }, 500);
-    });
+export const getRides = async (): Promise<Ride[]> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(rides);
+    }, 500);
+  });
 };
 
 export const getRideById = async (id: string): Promise<Ride | undefined> => {
@@ -190,10 +95,12 @@ export const createBooking = async (
         return reject(new Error('Ride not found'));
       }
       
-      const isAlreadyBooked = bookingData.seats.some(seat => ride.bookedSeats.includes(seat));
-      if (isAlreadyBooked) {
-          return reject(new Error('One or more selected seats are already booked.'));
-      }
+      bookingData.seats.forEach(seatNumber => {
+        const seat = ride.seats.find(s => s.number === seatNumber);
+        if (seat?.status !== 'available') {
+            return reject(new Error(`Seat ${seatNumber} is not available.`));
+        }
+      });
 
       const newBooking: Booking = {
         ...bookingData,
@@ -202,8 +109,13 @@ export const createBooking = async (
       };
       bookings.push(newBooking);
       
-      // Update booked seats for the ride
-      ride.bookedSeats.push(...bookingData.seats);
+      // Update seat status
+      bookingData.seats.forEach(seatNumber => {
+        const seat = ride.seats.find(s => s.number === seatNumber);
+        if (seat) {
+            seat.status = 'booked';
+        }
+      });
       
       resolve(newBooking);
     }, 1000);

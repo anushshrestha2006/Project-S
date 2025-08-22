@@ -4,13 +4,16 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Clock, Users, Bus, Armchair } from 'lucide-react';
 import type { Ride } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+
 
 interface RideCardProps {
   ride: Ride;
 }
 
 export function RideCard({ ride }: RideCardProps) {
-  const availableSeats = ride.totalSeats - ride.bookedSeats.length;
+  const availableSeats = ride.seats.filter(s => s.status === 'available').length;
+  const rideDate = format(new Date(ride.date), "MMMM d, yyyy");
 
   return (
     <Card className="flex flex-col transition-all hover:shadow-lg hover:-translate-y-1">
@@ -21,10 +24,10 @@ export function RideCard({ ride }: RideCardProps) {
                     {ride.from} <ArrowRight className="mx-2 h-5 w-5" /> {ride.to}
                 </CardTitle>
                 <CardDescription>
-                    Departs at {ride.departureTime}
+                    {rideDate}
                 </CardDescription>
             </div>
-             <Badge variant={availableSeats > 0 ? "secondary" : "destructive"} className="whitespace-nowrap">
+             <Badge variant={availableSeats > 0 ? "secondary" : "destructive"} className="whitespace-nowrap bg-accent text-accent-foreground">
                 {availableSeats > 0 ? `${availableSeats} seats left` : 'Full'}
             </Badge>
         </div>
@@ -38,15 +41,14 @@ export function RideCard({ ride }: RideCardProps) {
           <Bus className="mr-2 h-4 w-4" />
           <span>{ride.vehicleType}</span>
         </div>
-        <div className="flex items-center text-sm text-muted-foreground">
-          <Users className="mr-2 h-4 w-4" />
-          <span>{ride.totalSeats} Total Seats</span>
+         <div className="flex items-center text-sm font-semibold">
+          <span>NPR {ride.price.toLocaleString()} per seat</span>
         </div>
       </CardContent>
       <CardFooter>
         <Button asChild className="w-full" disabled={availableSeats === 0}>
           <Link href={`/booking/${ride.id}`}>
-            Book Now <Armchair className="ml-2 h-4 w-4" />
+            Select Seats <Armchair className="ml-2 h-4 w-4" />
           </Link>
         </Button>
       </CardFooter>

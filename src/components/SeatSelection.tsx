@@ -1,43 +1,43 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Ride, User } from '@/lib/types';
+import type { Ride, User, Seat as SeatType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Armchair, SteeringWheel } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useFormState, useFormStatus } from 'react-dom';
 import { processBooking, type BookingState } from '@/lib/actions';
+import { useFormState, useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 
 interface SeatProps {
-  seatNumber: number;
-  isBooked: boolean;
+  seat: SeatType;
   isSelected: boolean;
   onSelect: (seatNumber: number) => void;
 }
 
-function Seat({ seatNumber, isBooked, isSelected, onSelect }: SeatProps) {
-  const seatStatus = isBooked ? 'booked' : isSelected ? 'selected' : 'available';
+function Seat({ seat, isSelected, onSelect }: SeatProps) {
+  const status = isSelected ? 'selected' : seat.status;
+  const isBooked = seat.status === 'booked';
 
   return (
     <button
-      onClick={() => onSelect(seatNumber)}
+      onClick={() => onSelect(seat.number)}
       disabled={isBooked}
       className={cn(
-        'flex flex-col items-center justify-center p-1 rounded-md transition-all duration-200 aspect-square',
-        'disabled:cursor-not-allowed disabled:opacity-50',
-        seatStatus === 'available' && 'bg-accent/50 text-accent-foreground hover:bg-accent',
-        seatStatus === 'selected' && 'bg-primary text-primary-foreground ring-2 ring-offset-2 ring-primary ring-offset-background',
-        seatStatus === 'booked' && 'bg-muted text-muted-foreground'
+        'flex flex-col items-center justify-center p-1 rounded-md transition-all duration-200 aspect-square border-2',
+        'disabled:cursor-not-allowed disabled:opacity-40',
+        status === 'available' && 'border-accent bg-accent/20 text-accent-foreground hover:bg-accent',
+        status === 'selected' && 'border-primary bg-primary text-primary-foreground ring-2 ring-offset-2 ring-primary ring-offset-background',
+        status === 'booked' && 'border-muted bg-muted text-muted-foreground'
       )}
-      aria-label={`Seat ${seatNumber}`}
+      aria-label={`Seat ${seat.number}`}
     >
       <Armchair className="w-6 h-6 sm:w-8 sm:h-8" />
-      <span className="text-xs font-semibold">{seatNumber}</span>
+      <span className="text-xs font-semibold">{seat.number}</span>
     </button>
   );
 }
@@ -45,7 +45,7 @@ function Seat({ seatNumber, isBooked, isSelected, onSelect }: SeatProps) {
 function SubmitButton() {
     const { pending } = useFormStatus();
     return (
-        <Button type="submit" disabled={pending} className="w-full">
+        <Button type="submit" disabled={pending} className="w-full text-lg py-6">
             {pending ? 'Processing...' : 'Confirm Booking'}
         </Button>
     )
@@ -58,10 +58,10 @@ export function SeatSelection({ ride }: { ride: Ride }) {
   const router = useRouter();
 
   useEffect(() => {
+    // In a real app, you'd get this from a proper auth context
     const storedUser = localStorage.getItem('sumo-sewa-user');
     if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
+      setUser(JSON.parse(storedUser));
     }
   }, []);
 
@@ -77,15 +77,19 @@ export function SeatSelection({ ride }: { ride: Ride }) {
   const [state, dispatch] = useFormState(processBooking, initialState);
 
   useEffect(() => {
-    if (state.message && !state.errors?.server && !state.errors?.seats) {
+    if (state.message && !state.errors) {
         toast({
             title: "Booking Confirmed!",
             description: state.message,
-            className: "bg-green-500 text-white"
+            variant: 'default',
+            className: "bg-green-500 border-green-500 text-white"
         });
         setSelectedSeats([]);
+        // Refresh the page to get latest seat status and redirect
+        router.refresh();
         setTimeout(() => router.push('/'), 2000);
-    } else if (state.message && (state.errors?.server || state.errors?.seats)) {
+
+    } else if (state.message && state.errors) {
         toast({
             variant: "destructive",
             title: "Booking Failed",
@@ -97,33 +101,34 @@ export function SeatSelection({ ride }: { ride: Ride }) {
   const totalPrice = selectedSeats.length * ride.price;
 
   const renderSeats = () => {
-    const seats = [];
+    const seatLayout = [];
     // Driver seat
-    seats.push(
+    seatLayout.push(
         <div key="driver" className="flex flex-col items-center justify-center text-muted-foreground">
             <SteeringWheel className="w-6 h-6 sm:w-8 sm:h-8" />
             <span className="text-xs font-semibold">Driver</span>
         </div>
     );
-    // Spacer
-    seats.push(<div key="spacer-front" className="col-span-1"></div>);
+    // Spacer - after driver
+    seatLayout.push(<div key="spacer-front" className="col-span-1"></div>);
+    seatLayout.push(<div key="spacer-front-2" className="col-span-1"></div>);
 
-    for (let i = 1; i <= ride.totalSeats; i++) {
-        seats.push(
+
+    ride.seats.forEach((seat) => {
+        seatLayout.push(
             <Seat
-                key={i}
-                seatNumber={i}
-                isBooked={ride.bookedSeats.includes(i)}
-                isSelected={selectedSeats.includes(i)}
+                key={seat.number}
+                seat={seat}
+                isSelected={selectedSeats.includes(seat.number)}
                 onSelect={handleSelectSeat}
             />
         );
-        // Add a spacer for aisle
-        if (i % 3 === 0 && i < ride.totalSeats) {
-             seats.push(<div key={`spacer-${i}`} className="col-span-1"></div>)
+        // Add a spacer for aisle after every 2 seats in a row of 3 (1 | 2 3)
+         if (seat.number % 3 === 1) {
+             seatLayout.push(<div key={`spacer-${seat.number}`} className="col-span-1"></div>)
         }
-    }
-    return seats;
+    });
+    return seatLayout;
   };
 
   return (
@@ -131,62 +136,69 @@ export function SeatSelection({ ride }: { ride: Ride }) {
         <div className="lg:col-span-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Select Your Seat</CardTitle>
+                    <CardTitle>Select Your Seat(s)</CardTitle>
+                    <CardDescription>Choose from the available seats below.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="p-4 bg-background rounded-lg border">
+                    <div className="p-4 bg-background rounded-lg border-2 border-dashed">
                         <div className="grid grid-cols-4 gap-2 md:gap-4 max-w-md mx-auto">
                             {renderSeats()}
                         </div>
                     </div>
                      <div className="flex justify-center space-x-6 mt-6 text-sm">
-                        <div className="flex items-center"><div className="w-4 h-4 rounded bg-accent/50 mr-2"></div>Available</div>
+                        <div className="flex items-center"><div className="w-4 h-4 rounded border-2 border-accent bg-accent/20 mr-2"></div>Available</div>
                         <div className="flex items-center"><div className="w-4 h-4 rounded bg-primary mr-2"></div>Selected</div>
                         <div className="flex items-center"><div className="w-4 h-4 rounded bg-muted mr-2"></div>Booked</div>
                     </div>
                 </CardContent>
             </Card>
         </div>
-        <div>
-            <Card>
+        <div className="sticky top-24">
+            <Card className="shadow-xl">
                 <CardHeader>
                     <CardTitle>Booking Summary</CardTitle>
                 </CardHeader>
                 <CardContent>
+                    {!user ? (
+                         <div className="text-center p-4 bg-yellow-100/50 border border-yellow-300 rounded-md">
+                            <p className="text-yellow-800">Please <a href="/login" className="font-bold underline">login</a> or <a href="/signup" className="font-bold underline">sign up</a> to complete your booking.</p>
+                        </div>
+                    ) : (
                     <form action={dispatch} className="space-y-4">
                         <input type="hidden" name="rideId" value={ride.id} />
                         <input type="hidden" name="seats" value={JSON.stringify(selectedSeats)} />
-                        <input type="hidden" name="user" value={JSON.stringify(user)} />
+                        <input type="hidden" name="userId" value={user.id} />
                         
                         <div className="space-y-2">
                             <Label htmlFor="passengerName">Passenger Name</Label>
                             <Input id="passengerName" name="passengerName" placeholder="Full Name" defaultValue={user?.name} required />
-                            {state.errors?.passengerName && <p className="text-xs text-destructive">{state.errors.passengerName[0]}</p>}
+                            {state?.errors?.passengerName && <p className="text-xs text-destructive">{state.errors.passengerName[0]}</p>}
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="passengerPhone">Phone Number</Label>
                             <Input id="passengerPhone" name="passengerPhone" placeholder="98XXXXXXXX" defaultValue={user?.phoneNumber} required />
-                             {state.errors?.passengerPhone && <p className="text-xs text-destructive">{state.errors.passengerPhone[0]}</p>}
+                             {state?.errors?.passengerPhone && <p className="text-xs text-destructive">{state.errors.passengerPhone[0]}</p>}
                         </div>
 
-                        <div className="border-t pt-4 space-y-2">
-                            <div className="flex justify-between">
+                        <div className="border-t pt-4 space-y-3">
+                            <div className="flex justify-between font-medium">
                                 <span className="text-muted-foreground">Selected Seats:</span>
                                 <strong>{selectedSeats.join(', ') || 'None'}</strong>
                             </div>
-                             <div className="flex justify-between">
+                             <div className="flex justify-between text-xl font-bold">
                                 <span className="text-muted-foreground">Total Price:</span>
-                                <strong>NPR {totalPrice.toLocaleString()}</strong>
+                                <span>NPR {totalPrice.toLocaleString()}</span>
                             </div>
                         </div>
 
                         {selectedSeats.length > 0 ? (
                             <SubmitButton/>
                         ) : (
-                             <Button disabled className="w-full">Select a seat to book</Button>
+                             <Button disabled className="w-full text-lg py-6">Select a seat to book</Button>
                         )}
-                        {state.errors?.seats && <p className="text-sm text-destructive text-center">{state.errors.seats[0]}</p>}
+                        {state?.errors?.seats && <p className="text-sm text-destructive text-center pt-2">{state.errors.seats[0]}</p>}
                     </form>
+                    )}
                 </CardContent>
             </Card>
         </div>

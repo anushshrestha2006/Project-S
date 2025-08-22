@@ -1,36 +1,20 @@
 import { RideCard } from '@/components/RideCard';
 import { getRides } from '@/lib/data';
 import { Bus } from 'lucide-react';
-import { SearchForm } from '@/components/SearchForm';
-import { Card, CardContent } from '@/components/ui/card';
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams?: {
-    from?: string;
-    to?: string;
-    date?: string;
-  };
-}) {
-  const rides = await getRides(searchParams);
+export default async function Home() {
+  const rides = await getRides();
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold tracking-tight text-primary font-headline">
-          Find Your Next Ride
+          Available Rides
         </h1>
         <p className="text-muted-foreground mt-2">
           Seamless travel between Birgunj and Kathmandu.
         </p>
       </div>
-
-      <Card className="mb-8">
-        <CardContent className="p-4 sm:p-6">
-            <SearchForm />
-        </CardContent>
-      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {rides.map((ride) => (
@@ -40,7 +24,7 @@ export default async function Home({
       {rides.length === 0 && (
         <div className="text-center py-16 text-muted-foreground flex flex-col items-center">
             <Bus className="w-16 h-16 mb-4"/>
-            <p>No rides found for the selected criteria. Please try a different search.</p>
+            <p>No upcoming rides available at the moment. Please check back later.</p>
         </div>
       )}
     </div>

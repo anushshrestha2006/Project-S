@@ -4,9 +4,7 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -20,50 +18,45 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import type { User } from '@/lib/types';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, User as UserIcon, Mail, Phone, Lock } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  email: z.string().email({ message: 'Please enter a valid email.' }),
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
   phoneNumber: z.string().regex(/^\d{10}$/, { message: 'Please enter a valid 10-digit phone number.' }),
-  password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
+    message: "Passwords do not match.",
     path: ["confirmPassword"],
 });
 
-function PasswordStrength({ password }: { password?: string }) {
-  const [strength, setStrength] = useState({ value: 0, label: 'Weak', color: 'bg-destructive' });
-
-  useState(() => {
-    let score = 0;
-    if (!password) {
-      setStrength({ value: 0, label: 'Weak', color: 'bg-destructive' });
-      return;
+const PasswordStrengthIndicator = ({ password = '' }: { password?: string }) => {
+    const getStrength = () => {
+        let score = 0;
+        if (password.length >= 8) score++;
+        if (password.length >= 12) score++;
+        if (/\d/.test(password)) score++;
+        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+        if (/[^A-Za-z0-9]/.test(password)) score++; // special chars
+        return score;
     }
-    if (password.length >= 8) score++;
-    if (password.length >= 12) score++;
-    if (/\d/.test(password)) score++;
-    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score++;
 
-    if (score < 3) {
-      setStrength({ value: (score / 5) * 100, label: 'Weak', color: 'bg-destructive' });
-    } else if (score < 5) {
-      setStrength({ value: (score / 5) * 100, label: 'Medium', color: 'bg-yellow-500' });
-    } else {
-      setStrength({ value: 100, label: 'Strong', color: 'bg-green-500' });
-    }
-  });
+    const score = getStrength();
+    const value = (score / 5) * 100;
+    const label = ['Very Weak', 'Weak', 'Medium', 'Strong', 'Very Strong'][score];
+    const color = ['bg-red-500', 'bg-red-500', 'bg-yellow-500', 'bg-green-500', 'bg-green-500'][score];
 
-  return (
-    <div>
-        <Progress value={strength.value} className="h-2" barClassName={strength.color} />
-        <p className="text-xs mt-1 text-muted-foreground">{strength.label}</p>
-    </div>
-  );
-}
+    if (!password) return null;
+
+    return (
+        <div>
+            <Progress value={value} className="h-1.5" barClassName={color} />
+            <p className="text-xs mt-1 text-right text-muted-foreground">{label}</p>
+        </div>
+    );
+};
+
 
 export function SignUpForm() {
   const router = useRouter();
@@ -80,26 +73,30 @@ export function SignUpForm() {
     mode: 'onTouched'
   });
 
-  const password = form.watch('password');
-  const confirmPassword = form.watch('confirmPassword');
-  const { errors } = form.formState;
+  const { watch, formState: { errors } } = form;
+  const password = watch('password');
+  const confirmPassword = watch('confirmPassword');
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // Mock signup
+    // This is mock signup. Replace with Firebase Auth.
     const newUser: User = {
         id: `user-${Date.now()}`,
         name: values.name,
         email: values.email,
+        phoneNumber: values.phoneNumber,
         role: 'user',
-        // In a real app, you would not store the password here
     }
+    // In a real app, you would not store the password here.
+    // Also, you would check if user already exists.
+    
     localStorage.setItem('sumo-sewa-user', JSON.stringify(newUser));
 
     toast({
-      title: 'Account Created',
-      description: "You have been successfully signed up.",
+      title: 'Account Created Successfully!',
+      description: "Welcome to Sumo Sewa. You are now logged in.",
     });
     router.push('/');
+    router.refresh();
   }
 
   return (
@@ -111,9 +108,12 @@ export function SignUpForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Full Name</FormLabel>
-              <FormControl>
-                <Input placeholder="John Doe" {...field} />
-              </FormControl>
+              <div className="relative">
+                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <FormControl>
+                  <Input placeholder="John Doe" {...field} className="pl-10" />
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}
@@ -124,9 +124,12 @@ export function SignUpForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="name@example.com" {...field} />
-              </FormControl>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <FormControl>
+                  <Input placeholder="name@example.com" {...field} className="pl-10"/>
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}
@@ -137,9 +140,12 @@ export function SignUpForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Phone Number</FormLabel>
-              <FormControl>
-                <Input placeholder="98XXXXXXXX" {...field} />
-              </FormControl>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <FormControl>
+                  <Input placeholder="98XXXXXXXX" {...field} className="pl-10"/>
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}
@@ -150,11 +156,14 @@ export function SignUpForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
-               <PasswordStrength password={field.value} />
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} className="pl-10"/>
+                </FormControl>
+              </div>
               <FormMessage />
+              <PasswordStrengthIndicator password={field.value} />
             </FormItem>
           )}
         />
@@ -165,8 +174,9 @@ export function SignUpForm() {
             <FormItem>
               <FormLabel>Confirm Password</FormLabel>
                 <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
+                        <Input type="password" placeholder="••••••••" {...field} className="pl-10"/>
                     </FormControl>
                     {confirmPassword && (
                         password === confirmPassword && !errors.confirmPassword ? (
@@ -180,15 +190,9 @@ export function SignUpForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full text-base py-6">
           Create Account
         </Button>
-        <div className="mt-4 text-center text-sm">
-          Already have an account?{' '}
-          <Link href="/login" className="underline">
-            Login
-          </Link>
-        </div>
       </form>
     </Form>
   );
