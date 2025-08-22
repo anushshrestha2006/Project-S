@@ -11,6 +11,7 @@ const initialSeats: Seat[] = Array.from({ length: 9 }, (_, i) => ({
 
 // Hardcoded in-memory database for rides
 let ridesDB: Ride[] = [
+    // Rides for today
     {
         id: '1',
         from: 'Birgunj',
@@ -59,7 +60,7 @@ let ridesDB: Ride[] = [
         seats: JSON.parse(JSON.stringify(initialSeats)),
         totalSeats: 9,
     },
-     // Add a ride for tomorrow for testing
+    // Rides for tomorrow
     {
         id: '5',
         from: 'Birgunj',
@@ -110,52 +111,64 @@ let ridesDB: Ride[] = [
     }
 ];
 
+// Helper to get current time in Nepal (UTC+5:45)
+const getNepalTime = () => {
+    const now = new Date();
+    const utcOffset = now.getTimezoneOffset() * 60000; // in milliseconds
+    const utcTime = now.getTime() + utcOffset;
+    const nepalOffset = (5 * 60 + 45) * 60000; // 5 hours 45 minutes in milliseconds
+    return new Date(utcTime + nepalOffset);
+};
+
 
 export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
-    let rideList = [...ridesDB];
-
+    
+    // 1. Filter by route (from/to) first
+    let filteredByRoute = [...ridesDB];
     if (filters.from && filters.from !== 'all') {
-        rideList = rideList.filter(ride => ride.from === filters.from);
+        filteredByRoute = filteredByRoute.filter(ride => ride.from === filters.from);
     }
     if (filters.to && filters.to !== 'all') {
-        rideList = rideList.filter(ride => ride.to === filters.to);
+        filteredByRoute = filteredByRoute.filter(ride => ride.to === filters.to);
     }
     
-    const now = new Date();
-    
-    // Filter logic
-    let finalRideList = rideList.filter(ride => {
+    const now = getNepalTime();
+    const todayStr = format(now, 'yyyy-MM-dd');
+
+    // 2. Filter by date and time logic
+    let finalRideList = filteredByRoute.filter(ride => {
         const rideDate = parseISO(ride.date);
         
-        // If a date is specified in the filter, only show rides for that date
+        // If a specific date is selected in the filter
         if (filters.date) {
+            // Show only rides for that date
             return ride.date === filters.date;
         }
 
-        // If no date is specified, show rides for today and future dates
-        const rideDateStr = format(rideDate, 'yyyy-MM-dd');
-        const todayStr = format(now, 'yyyy-MM-dd');
-        
-        // Exclude past dates
-        if (rideDateStr < todayStr) {
+        // --- If no specific date is selected (default view) ---
+
+        // Exclude rides from dates that are completely in the past
+        if (ride.date < todayStr) {
             return false;
         }
 
-        // For rides scheduled today, check if departure time has passed
-        if (rideDateStr === todayStr) {
+        // For rides scheduled for today, check if departure time has passed
+        if (ride.date === todayStr) {
             const departureDateTime = parse(ride.departureTime, 'hh:mm a', rideDate);
+            // Only include the ride if its departure time is in the future
             if (departureDateTime < now) {
                 return false;
             }
         }
-
+        
+        // Include all future rides and valid today's rides
         return true;
     });
 
 
-    // Sort the results
+    // Sort the final results
     finalRideList.sort((a, b) => {
         const dateA = new Date(a.date).getTime();
         const dateB = new Date(b.date).getTime();
