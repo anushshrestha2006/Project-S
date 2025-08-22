@@ -132,7 +132,8 @@ function TicketSkeleton() {
     )
 }
 
-export default function TicketPage({ params: { bookingId } }: { params: { bookingId: string }}) {
+export default function TicketPage({ params }: { params: { bookingId: string }}) {
+    const { bookingId } = params;
     const [booking, setBooking] = useState<Booking | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isDownloading, setIsDownloading] = useState(false);
