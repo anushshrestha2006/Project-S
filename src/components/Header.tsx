@@ -39,6 +39,7 @@ export default function Header() {
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || "User",
                 email: firebaseUser.email || "",
+                photoURL: firebaseUser.photoURL || undefined,
                 role: 'user'
              }
              setUser(tempUser);
@@ -82,6 +83,7 @@ export default function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-9 w-9 border-2 border-primary/50">
+                       <AvatarImage src={user.photoURL} alt={user.name} />
                        <AvatarFallback className="bg-primary/20 text-primary font-bold">{getInitials(user.name)}</AvatarFallback>
                     </Avatar>
                   </Button>

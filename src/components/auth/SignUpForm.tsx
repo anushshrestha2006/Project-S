@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, storage } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +23,9 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import type { User } from '@/lib/types';
-import { CheckCircle2, XCircle, User as UserIcon, Mail, Phone, Lock } from 'lucide-react';
+import { CheckCircle2, XCircle, User as UserIcon, Mail, Phone, Lock, Camera } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -30,6 +33,7 @@ const formSchema = z.object({
   phoneNumber: z.string().regex(/^\d{10}$/, { message: 'Please enter a valid 10-digit phone number.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
   confirmPassword: z.string(),
+  photo: z.any().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match.",
     path: ["confirmPassword"],
@@ -65,6 +69,9 @@ const PasswordStrengthIndicator = ({ password = '' }: { password?: string }) => 
 export function SignUpForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -81,17 +88,37 @@ export function SignUpForm() {
   const password = watch('password');
   const confirmPassword = watch('confirmPassword');
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        form.setValue('photo', file);
+        setPhotoPreview(URL.createObjectURL(file));
+    }
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         const firebaseUser = userCredential.user;
+        let photoURL: string | undefined = undefined;
 
-        await updateProfile(firebaseUser, { displayName: values.name });
+        // Upload photo if selected
+        if (values.photo) {
+            const photoRef = ref(storage, `profile-photos/${firebaseUser.uid}`);
+            await uploadBytes(photoRef, values.photo);
+            photoURL = await getDownloadURL(photoRef);
+        }
+
+        await updateProfile(firebaseUser, { 
+            displayName: values.name,
+            photoURL: photoURL,
+        });
 
         const newUser: Omit<User, 'id'> = {
             name: values.name,
             email: values.email,
             phoneNumber: values.phoneNumber,
+            photoURL: photoURL,
             role: 'user',
             bookings: []
         };
@@ -124,6 +151,36 @@ export function SignUpForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+         <FormField
+          control={form.control}
+          name="photo"
+          render={({ field }) => (
+            <FormItem className="flex flex-col items-center">
+                 <FormControl>
+                    <button type="button" onClick={() => photoInputRef.current?.click()} className="relative group">
+                         <Avatar className="h-24 w-24 border-4 border-muted group-hover:border-primary transition-colors">
+                            <AvatarImage src={photoPreview || ''} alt="Profile Photo" />
+                            <AvatarFallback className="bg-muted">
+                                <UserIcon className="h-10 w-10 text-muted-foreground" />
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="h-8 w-8 text-white" />
+                        </div>
+                    </button>
+                 </FormControl>
+                 <FormLabel className="sr-only">Profile Photo</FormLabel>
+                <input 
+                    type="file" 
+                    ref={photoInputRef}
+                    className="hidden" 
+                    accept="image/png, image/jpeg, image/gif"
+                    onChange={handlePhotoChange}
+                />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="name"

@@ -33,6 +33,7 @@ export type User = {
   name: string;
   email: string;
   phoneNumber?: string;
+  photoURL?: string;
   role: 'user' | 'admin';
   bookings?: Pick<Booking, 'rideId' | 'seats'>[];
 };
