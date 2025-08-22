@@ -38,7 +38,7 @@ async function seedDailyRides() {
         const batch = writeBatch(db);
         templateSnapshot.docs.forEach(templateDoc => {
             const template = templateDoc.data();
-            const newRideDoc = doc(ridesCol); // Create a new document reference with a unique ID
+            const newRideDoc = doc(collection(db, 'rides')); // Create a new document reference with a unique ID
 
             const rideData = {
                 from: template.from,
@@ -114,6 +114,7 @@ export const getRides = async (
             }
             // If the ride is for today, check the departure time
             try {
+                // The time is stored as "6:00 AM". The 'h:mm a' format token correctly handles this.
                 const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd h:mm a', new Date());
                 return isAfter(departureDateTime, now);
             } catch (e) {
