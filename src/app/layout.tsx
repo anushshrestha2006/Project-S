@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/Header';
 import { cn } from '@/lib/utils';
 import { Suspense } from 'react';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: 'Sumo Sewa',
@@ -33,6 +34,7 @@ export default function RootLayout({
               {children}
             </Suspense>
           </main>
+          <Footer />
         </div>
         <Toaster />
       </body>
