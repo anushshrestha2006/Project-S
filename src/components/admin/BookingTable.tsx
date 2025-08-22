@@ -11,9 +11,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus } from "lucide-react";
+import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format, isSameDay } from "date-fns";
 import { auth } from "@/lib/firebase";
@@ -31,6 +38,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useDebouncedCallback } from "use-debounce";
 import { ClearBookingsButton } from "./ClearBookingsButton";
+import { TicketContent } from "../Ticket";
 
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
@@ -44,6 +52,8 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
     const [isClient, setIsClient] = useState(false);
+    const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+    const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
 
     useEffect(() => {
         setIsClient(true);
@@ -133,6 +143,11 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
             link.click();
             document.body.removeChild(link);
         }
+    };
+
+    const handlePreviewTicket = (booking: Booking) => {
+        setSelectedBooking(booking);
+        setIsTicketDialogOpen(true);
     };
 
     const formatBookingTime = (time: Date | Timestamp | string) => {
@@ -294,10 +309,8 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                               </>
                                            )}
                                             {booking.status === 'confirmed' && (
-                                                 <Button asChild size="sm" variant="ghost">
-                                                    <Link href={`/ticket/${booking.id}`} target="_blank">
-                                                        <Ticket className="mr-2 h-4 w-4" /> View Ticket
-                                                    </Link>
+                                                 <Button size="sm" variant="ghost" onClick={() => handlePreviewTicket(booking)}>
+                                                    <Eye className="mr-2 h-4 w-4" /> Preview
                                                  </Button>
                                             )}
                                         </div>
@@ -314,8 +327,11 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                     </TableBody>
                 </Table>
             </div>
+             <Dialog open={isTicketDialogOpen} onOpenChange={setIsTicketDialogOpen}>
+                <DialogContent className="max-w-md p-0 bg-transparent border-0 shadow-none">
+                     {selectedBooking && <TicketContent booking={selectedBooking} />}
+                </DialogContent>
+            </Dialog>
         </div>
     );
-
-    
-
+}
