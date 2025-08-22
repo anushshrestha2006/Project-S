@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export type SeatStatus = 'available' | 'booked' | 'locked';
@@ -33,7 +34,6 @@ export type Booking = {
   rideDetails?: Ride;
   status: BookingStatus;
   paymentMethod?: 'esewa' | 'khalti' | 'imepay';
-  paymentScreenshotUrl?: string;
   transactionId?: string;
 };
 

@@ -185,13 +185,6 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                      <TableCell>
                                         <div className="font-medium capitalize">{booking.paymentMethod}</div>
                                         <div className="text-xs text-muted-foreground">{booking.transactionId || 'N/A'}</div>
-                                         {booking.paymentScreenshotUrl && (
-                                            <Button asChild variant="ghost" size="sm" className="h-auto p-0 mt-1 text-primary hover:underline">
-                                                <a href={booking.paymentScreenshotUrl} target="_blank" rel="noopener noreferrer">
-                                                    View Screenshot <ExternalLink className="ml-1 h-3 w-3"/>
-                                                </a>
-                                            </Button>
-                                       )}
                                     </TableCell>
                                      <TableCell>
                                         <Badge variant={getStatusBadgeVariant(booking.status)}>

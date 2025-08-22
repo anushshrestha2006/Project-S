@@ -1,5 +1,6 @@
+
 'use client';
-import { useState, useActionState, useRef } from 'react';
+import { useState, useActionState, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -45,11 +46,12 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails }: PaymentDial
   const { toast } = useToast();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const [activeTab, setActiveTab] = useState('esewa');
   
   const initialState: BookingState = { message: null, errors: {} };
   const [state, dispatch] = useActionState(processBooking, initialState);
 
-  useState(() => {
+  useEffect(() => {
     if(!isOpen) return;
 
     if (state?.message && !state.errors) {
@@ -70,7 +72,7 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails }: PaymentDial
             description: errorDescription || "An unexpected error occurred."
         })
     }
-  });
+  }, [state, isOpen, setIsOpen, router, toast]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -78,7 +80,7 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails }: PaymentDial
         <DialogHeader>
           <DialogTitle>Complete Your Payment</DialogTitle>
           <DialogDescription>
-            Scan the QR code to pay NPR {bookingDetails.totalPrice.toLocaleString()}. Then, upload a screenshot of your transaction.
+            Scan the QR code to pay NPR {bookingDetails.totalPrice.toLocaleString()}. Then, provide your transaction details.
           </DialogDescription>
         </DialogHeader>
         <form ref={formRef} action={dispatch}>
@@ -87,14 +89,14 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails }: PaymentDial
             <input type="hidden" name="userId" value={bookingDetails.userId} />
             <input type="hidden" name="passengerName" value={bookingDetails.passengerName} />
             <input type="hidden" name="passengerPhone" value={bookingDetails.passengerPhone} />
+            <input type="hidden" name="paymentMethod" value={activeTab} />
 
-            <Tabs defaultValue="esewa" className="w-full">
+            <Tabs defaultValue="esewa" className="w-full" onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="esewa">eSewa</TabsTrigger>
                     <TabsTrigger value="khalti">Khalti</TabsTrigger>
                     <TabsTrigger value="imepay">IMEPay</TabsTrigger>
                 </TabsList>
-                 <input type="hidden" name="paymentMethod" value={(formRef.current?.querySelector('[data-state="active"]') as HTMLElement)?.dataset.value || 'esewa'} />
                 <TabsContent value="esewa">
                     <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center">
                         <Image data-ai-hint="QR code" src="https://placehold.co/300x300.png" width={300} height={300} alt="eSewa QR Code" />
@@ -113,16 +115,11 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails }: PaymentDial
             </Tabs>
             
             <div className="grid w-full items-center gap-1.5 mt-4">
-                <Label htmlFor="transactionId">Transaction ID (Optional)</Label>
-                <Input type="text" id="transactionId" name="transactionId" placeholder="e.g., 1234ABC" />
+                <Label htmlFor="transactionId">Transaction ID</Label>
+                <Input type="text" id="transactionId" name="transactionId" placeholder="e.g., 1234ABC" required />
+                 {state?.errors?.transactionId && <p className="text-xs text-destructive">{state.errors.transactionId[0]}</p>}
             </div>
-
-            <div className="grid w-full max-w-sm items-center gap-1.5 mt-4">
-                <Label htmlFor="paymentScreenshot">Payment Screenshot</Label>
-                <Input id="paymentScreenshot" name="paymentScreenshot" type="file" accept="image/*" required />
-                {state?.errors?.paymentScreenshot && <p className="text-xs text-destructive">{state.errors.paymentScreenshot[0]}</p>}
-            </div>
-
+            
              <DialogFooter className="mt-6">
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">Cancel</Button>
