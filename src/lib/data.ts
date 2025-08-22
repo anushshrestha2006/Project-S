@@ -145,15 +145,16 @@ let users: User[] = [
 export const getRides = async (filters?: { from?: string; to?: string; date?: string }): Promise<Ride[]> => {
     return new Promise((resolve) => {
         setTimeout(() => {
-            let filteredRides = rides;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
             // Filter for upcoming rides first
-            filteredRides = rides.filter(ride => new Date(ride.date) >= today);
+            let upcomingRides = rides.filter(ride => new Date(ride.date) >= today);
 
+            let filteredRides = upcomingRides;
+            
             if (filters && (filters.from || filters.to || filters.date)) {
-                 filteredRides = filteredRides.filter(ride => {
+                 filteredRides = upcomingRides.filter(ride => {
                     const fromMatch = !filters.from || ride.from === filters.from;
                     const toMatch = !filters.to || ride.to === filters.to;
                     const dateMatch = !filters.date || ride.date === filters.date;
