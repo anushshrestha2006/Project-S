@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import type { User } from '@/lib/types';
-import { CheckCircle2, XCircle, User as UserIcon, Mail, Phone, Lock, Camera } from 'lucide-react';
+import { CheckCircle2, XCircle, User as UserIcon, Mail, Phone, Lock, Camera, Eye, EyeOff } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { cn } from '@/lib/utils';
 
@@ -71,6 +71,8 @@ export function SignUpForm() {
   const { toast } = useToast();
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -238,8 +240,11 @@ export function SignUpForm() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} className="pl-10"/>
+                  <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} className="pl-10 pr-10"/>
                 </FormControl>
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground cursor-pointer">
+                    {showPassword ? <EyeOff /> : <Eye />}
+                </button>
               </div>
               <FormMessage />
               <PasswordStrengthIndicator password={field.value} />
@@ -255,15 +260,20 @@ export function SignUpForm() {
                 <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} className="pl-10"/>
+                        <Input type={showConfirmPassword ? 'text' : 'password'} placeholder="••••••••" {...field} className="pl-10 pr-16"/>
                     </FormControl>
-                    {confirmPassword && (
-                        password === confirmPassword && !errors.confirmPassword ? (
-                            <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
-                        ) : (
-                            <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-destructive" />
-                        )
-                    )}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-2">
+                        {confirmPassword && (
+                            password === confirmPassword && !errors.confirmPassword ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            ) : (
+                                <XCircle className="h-5 w-5 text-destructive" />
+                            )
+                        )}
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="h-5 w-5 text-muted-foreground cursor-pointer">
+                            {showConfirmPassword ? <EyeOff /> : <Eye />}
+                        </button>
+                    </div>
                 </div>
               <FormMessage />
             </FormItem>
