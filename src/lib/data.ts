@@ -22,7 +22,7 @@ let rides: Ride[] = [
     vehicleType: 'Sumo',
     totalSeats: 9,
     seats: generateSeats(9, [3, 8]),
-    price: 900,
+    price: 850,
     date: format(new Date(), 'yyyy-MM-dd'),
   },
   {
@@ -34,7 +34,7 @@ let rides: Ride[] = [
     vehicleType: 'Sumo',
     totalSeats: 9,
     seats: generateSeats(9, [1, 5]),
-    price: 900,
+    price: 850,
     date: format(new Date(), 'yyyy-MM-dd'),
   },
   {
@@ -46,7 +46,7 @@ let rides: Ride[] = [
     vehicleType: 'Sumo',
     totalSeats: 9,
     seats: generateSeats(9, [7]),
-    price: 900,
+    price: 850,
     date: format(new Date(), 'yyyy-MM-dd'),
   },
     {
@@ -58,7 +58,7 @@ let rides: Ride[] = [
     vehicleType: 'Sumo',
     totalSeats: 9,
     seats: generateSeats(9, []),
-    price: 900,
+    price: 850,
     date: format(new Date(), 'yyyy-MM-dd'),
   },
 ];
