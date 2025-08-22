@@ -2,58 +2,76 @@
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat } from './types';
-import { format, isAfter, startOfDay, parse } from 'date-fns';
+import { format, startOfDay, parse, endOfDay } from 'date-fns';
 
 const initialSeats: Seat[] = Array.from({ length: 9 }, (_, i) => ({
     number: i + 1,
     status: 'available',
 }));
 
+// Hardcoded templates for daily rides.
+const RIDE_TEMPLATES = [
+    {
+        from: 'Birgunj',
+        to: 'Kathmandu',
+        departureTime: '06:00 AM',
+        arrivalTime: '02:00 PM',
+        price: 1200,
+        vehicleType: 'Sumo',
+    },
+    {
+        from: 'Kathmandu',
+        to: 'Birgunj',
+        departureTime: '10:00 AM',
+        arrivalTime: '06:00 PM',
+        price: 1200,
+        vehicleType: 'Sumo',
+    },
+     {
+        from: 'Birgunj',
+        to: 'Kathmandu',
+        departureTime: '07:00 PM',
+        arrivalTime: '03:00 AM',
+        price: 1200,
+        vehicleType: 'Sumo',
+    },
+    {
+        from: 'Kathmandu',
+        to: 'Birgunj',
+        departureTime: '08:00 PM',
+        arrivalTime: '04:00 AM',
+        price: 1200,
+        vehicleType: 'Sumo',
+    },
+];
+
+
 /**
- * Seeds the database with daily rides based on templates stored in the `dailyRideTemplates` collection.
+ * Seeds the database with daily rides based on hardcoded templates.
  * This function checks if rides for the current date have already been created and, if not,
- * creates them based on the templates. This allows for managing daily ride schedules directly from Firestore.
+ * creates them.
  */
 async function seedDailyRides() {
     const today = startOfDay(new Date());
     const todayStr = format(today, 'yyyy-MM-dd');
     const ridesCol = collection(db, 'rides');
 
+    const startOfToday = Timestamp.fromDate(today);
+    const endOfToday = Timestamp.fromDate(endOfDay(today));
+
     // Check if rides for today already exist to prevent re-seeding.
-    const q = query(ridesCol, where('date', '>=', Timestamp.fromDate(today)));
+    const q = query(ridesCol, where('date', '>=', startOfToday), where('date', '<=', endOfToday));
     const existingRidesSnapshot = await getDocs(q);
     
-    // A simple check to see if any documents have today's date string.
-    const alreadySeeded = existingRidesSnapshot.docs.some(doc => {
-        const data = doc.data();
-        const docDate = (data.date as Timestamp).toDate();
-        return format(docDate, 'yyyy-MM-dd') === todayStr;
-    });
-
-
-    if (!alreadySeeded) {
-        console.log(`No rides found for ${todayStr}. Seeding from templates...`);
+    if (existingRidesSnapshot.empty) {
+        console.log(`No rides found for ${todayStr}. Seeding from code templates...`);
         
-        const templatesCol = collection(db, 'dailyRideTemplates');
-        const templateSnapshot = await getDocs(templatesCol);
-
-        if (templateSnapshot.empty) {
-            console.log("No ride templates found in 'dailyRideTemplates' collection. No rides will be seeded.");
-            return;
-        }
-
         const batch = writeBatch(db);
-        templateSnapshot.docs.forEach(templateDoc => {
-            const template = templateDoc.data();
+        RIDE_TEMPLATES.forEach(template => {
             const newRideDoc = doc(collection(db, 'rides'));
 
             const rideData = {
-                from: template.from,
-                to: template.to,
-                departureTime: template.departureTime,
-                arrivalTime: template.arrivalTime,
-                price: template.price,
-                vehicleType: template.vehicleType,
+                ...template,
                 seats: initialSeats,
                 totalSeats: initialSeats.length,
                 date: Timestamp.fromDate(today),
@@ -62,7 +80,7 @@ async function seedDailyRides() {
         });
 
         await batch.commit();
-        console.log(`Successfully seeded ${templateSnapshot.size} rides for today.`);
+        console.log(`Successfully seeded ${RIDE_TEMPLATES.length} rides for today.`);
     }
 }
 
@@ -74,29 +92,36 @@ export const getRides = async (
     await seedDailyRides();
     
     const ridesCol = collection(db, 'rides');
+    let q = query(ridesCol);
     
-    // Base query with consistent ordering
-    let q = query(ridesCol, orderBy('date'), orderBy('departureTime'));
+    const hasFilters = (filters.from && filters.from !== 'all') || (filters.to && filters.to !== 'all') || filters.date;
 
-    // Date filter
-    if (filters.date) {
-        const filterDateStart = startOfDay(new Date(filters.date));
-        const filterDateEnd = new Date(filterDateStart);
-        filterDateEnd.setDate(filterDateEnd.getDate() + 1);
-        q = query(q, where('date', '>=', Timestamp.fromDate(filterDateStart)), where('date', '<', Timestamp.fromDate(filterDateEnd)));
+    if (hasFilters) {
+        if (filters.date) {
+            const filterDateStart = startOfDay(new Date(filters.date));
+            const filterDateEnd = endOfDay(new Date(filters.date));
+            q = query(q, where('date', '>=', Timestamp.fromDate(filterDateStart)), where('date', '<=', Timestamp.fromDate(filterDateEnd)));
+        } else {
+             q = query(q, where('date', '>=', Timestamp.fromDate(startOfDay(new Date()))));
+        }
+
+        if (filters.from && filters.from !== 'all') {
+            q = query(q, where('from', '==', filters.from));
+        }
+        if (filters.to && filters.to !== 'all') {
+            q = query(q, where('to', '==', filters.to));
+        }
+        q = query(q, orderBy('date'), orderBy('departureTime'));
+
     } else {
-        // Default to showing rides from today onwards
-        q = query(q, where('date', '>=', Timestamp.fromDate(startOfDay(new Date()))));
+        // Default query: no filters, just get upcoming rides
+        q = query(q, 
+            where('date', '>=', Timestamp.fromDate(startOfDay(new Date()))),
+            orderBy('date'), 
+            orderBy('departureTime')
+        );
     }
     
-    // Location filters
-    if (filters.from && filters.from !== 'all') {
-        q = query(q, where('from', '==', filters.from));
-    }
-    if (filters.to && filters.to !== 'all') {
-        q = query(q, where('to', '==', filters.to));
-    }
-
     const rideSnapshot = await getDocs(q);
     const rideList = rideSnapshot.docs.map(doc => {
         const data = doc.data();
