@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { Ride, User, Seat as SeatType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Armchair, SteeringWheel } from 'lucide-react';
+import { Armchair } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -18,6 +18,26 @@ interface SeatProps {
   isSelected: boolean;
   onSelect: (seatNumber: number) => void;
 }
+
+const SteeringWheel = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 15.5V22" />
+      <path d="M18.36 18.36L16 16" />
+      <path d="M5.64 18.36L8 16" />
+      <path d="M12 4.5V2" />
+    </svg>
+  );
 
 function Seat({ seat, isSelected, onSelect }: SeatProps) {
   const status = isSelected ? 'selected' : seat.status;
