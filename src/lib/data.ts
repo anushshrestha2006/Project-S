@@ -1,54 +1,66 @@
+
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat } from './types';
-import { format, isAfter, isEqual, startOfDay, parse } from 'date-fns';
+import { format, isAfter, startOfDay, parse } from 'date-fns';
+
+const initialSeats: Seat[] = Array.from({ length: 9 }, (_, i) => ({
+    number: i + 1,
+    status: 'available',
+}));
+
+const dailyRideTemplates = [
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', price: 2500, vehicleType: 'Sumo' },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', price: 2500, vehicleType: 'Sumo' },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', price: 2500, vehicleType: 'Sumo' },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', price: 2500, vehicleType: 'Sumo' },
+] as const;
 
 
-// A flag to control the one-time reset. In a real app, you'd use a more robust
-// system for data seeding, like a separate admin script.
-const RESET_DATA_ONCE = false; 
+/**
+ * Seeds the database with the four standard daily rides for a given date if they don't already exist.
+ * This prevents duplicate rides from being created on subsequent page loads.
+ */
+async function seedDailyRides() {
+    const today = startOfDay(new Date());
+    const ridesCol = collection(db, 'rides');
+    const todayStr = format(today, 'yyyy-MM-dd');
 
-const initialSeats: Seat[] = [
-    { number: 1, status: 'available' },
-    { number: 2, status: 'available' },
-    { number: 3, status: 'available' },
-    { number: 4, status: 'available' },
-    { number: 5, status: 'available' },
-    { number: 6, status: 'available' },
-    { number: 7, status: 'available' },
-    { number: 8, status: 'available' },
-    { number: 9, status: 'available' },
-];
+    // Check if rides for today already exist
+    const q = query(ridesCol, where('date', '==', Timestamp.fromDate(today)));
+    const existingRidesSnapshot = await getDocs(q);
 
-async function resetRidesAndBookings() {
-    console.log("Performing one-time data reset...");
-    const batch = writeBatch(db);
+    if (existingRidesSnapshot.empty) {
+        console.log(`No rides found for ${todayStr}. Seeding now...`);
+        const batch = writeBatch(db);
 
-    // 1. Delete all bookings
-    const bookingsSnapshot = await getDocs(collection(db, 'bookings'));
-    bookingsSnapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
-    });
+        dailyRideTemplates.forEach(template => {
+            const newRideDoc = doc(ridesCol); // Create a new document reference with a unique ID
+            const rideData: Omit<Ride, 'id'> = {
+                ...template,
+                date: todayStr,
+                seats: initialSeats,
+                totalSeats: 9,
+            };
+            batch.set(newRideDoc, {
+                ...rideData,
+                date: Timestamp.fromDate(today), // Store as Firestore Timestamp
+            });
+        });
 
-    // 2. Reset seats in all rides
-    const ridesSnapshot = await getDocs(collection(db, 'rides'));
-    ridesSnapshot.docs.forEach(doc => {
-        batch.update(doc.ref, { seats: initialSeats });
-    });
-
-    await batch.commit();
-    console.log("Data reset complete.");
+        await batch.commit();
+        console.log("Successfully seeded rides for today.");
+    }
 }
 
 
 export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
-    // This is a temporary development feature to easily reset the data.
-    // To re-run, change RESET_DATA_ONCE to true, save, let it run, then change it back to false.
-    if (RESET_DATA_ONCE) {
-        await resetRidesAndBookings();
-    }
+    
+    // Ensure daily rides for today exist.
+    // In a production app, this might be a scheduled job.
+    await seedDailyRides();
     
     const ridesCol = collection(db, 'rides');
     let q = query(ridesCol);
@@ -62,6 +74,7 @@ export const getRides = async (
         queryConstraints.push(where('date', '>=', Timestamp.fromDate(filterDateStart)));
         queryConstraints.push(where('date', '<', Timestamp.fromDate(filterDateEnd)));
     } else {
+        // Default to showing rides from today onwards
         queryConstraints.push(where('date', '>=', Timestamp.fromDate(startOfDay(new Date()))));
     }
     
@@ -84,8 +97,8 @@ export const getRides = async (
         } as Ride;
     });
 
-    // Post-filter for today's rides to exclude those that have already departed
-    if (!filters.date) {
+    // If filtering for today (or no date is provided), filter out past departure times
+     if (!filters.date || format(new Date(filters.date), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')) {
         const now = new Date();
         const todayStr = format(now, 'yyyy-MM-dd');
         
@@ -95,11 +108,15 @@ export const getRides = async (
                 return true;
             }
             // If the ride is for today, check the departure time
-            const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd h:mm a', new Date());
-            return isAfter(departureDateTime, now);
+            try {
+                const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd h:mm a', new Date());
+                return isAfter(departureDateTime, now);
+            } catch (e) {
+                console.error(`Could not parse date for ride ${ride.id}: ${ride.date} ${ride.departureTime}`);
+                return false;
+            }
         });
     }
-
 
     return rideList;
 };
@@ -149,7 +166,6 @@ export const createBooking = async (
 
             const rideData = rideDoc.data();
             
-            // Ensure rideData.seats exists and is an array
             const currentSeats: Seat[] = rideData.seats || [];
 
             // Check seat availability
@@ -170,19 +186,17 @@ export const createBooking = async (
             transaction.update(rideDocRef, { seats: newSeats });
             
             // Create new booking document
-            const bookingsCol = collection(db, 'bookings');
+            const newBookingRef = doc(collection(db, "bookings"));
             const newBookingData = {
                 ...bookingData,
                 bookingTime: Timestamp.now(),
             };
-            // Use addDoc within the transaction by getting the collection ref
-            const newBookingRef = doc(collection(db, "bookings"));
             transaction.set(newBookingRef, newBookingData);
         });
 
          const newBooking: Booking = {
             ...bookingData,
-            id: `temp-id-${Date.now()}`, // This ID is temporary, Firestore will generate one
+            id: `temp-id-${Date.now()}`,
             bookingTime: new Date(),
         };
 
