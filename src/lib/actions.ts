@@ -2,14 +2,15 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { storage, db } from './firebase';
+import { storage, db, auth } from './firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { doc, updateDoc, collection } from 'firebase/firestore';
 import type { User, FooterSettings } from './types';
 import { format } from 'date-fns';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 
 const BookingFormSchema = z.object({
   rideId: z.string(),
@@ -256,5 +257,101 @@ export async function updateFooterSettings(prevState: any, formData: FormData): 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
         return { success: false, message: `Failed to update settings: ${errorMessage}` };
+    }
+}
+
+const UpdateProfileSchema = z.object({
+    userId: z.string(),
+    name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+    phoneNumber: z.string().regex(/^\d{10}$/, { message: 'Please enter a valid 10-digit phone number.' }),
+    dob: z.string().optional(),
+});
+
+export async function updateUserProfile(prevState: any, formData: FormData): Promise<{ success: boolean; message: string; errors?: any }> {
+    const validatedFields = UpdateProfileSchema.safeParse({
+        userId: formData.get('userId'),
+        name: formData.get('name'),
+        phoneNumber: formData.get('phoneNumber'),
+        dob: formData.get('dob') || undefined,
+    });
+
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: "Validation failed.",
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    try {
+        await updateUserProfileInDb(validatedFields.data.userId, {
+            name: validatedFields.data.name,
+            phoneNumber: validatedFields.data.phoneNumber,
+            dob: validatedFields.data.dob,
+        });
+
+        revalidatePath('/profile');
+        revalidatePath('/header'); // To update user name in header
+        return { success: true, message: 'Profile updated successfully!' };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+        return { success: false, message: `Failed to update profile: ${errorMessage}` };
+    }
+}
+
+const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required.'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters long.'),
+});
+
+export async function changeUserPassword(prevState: any, formData: FormData): Promise<{ success: boolean; message: string; errors?: any }> {
+    if (!auth.currentUser) {
+        return { success: false, message: 'You must be logged in to change your password.' };
+    }
+    
+    const validatedFields = ChangePasswordSchema.safeParse({
+        currentPassword: formData.get('currentPassword'),
+        newPassword: formData.get('newPassword'),
+    });
+
+     if (!validatedFields.success) {
+        return {
+            success: false,
+            message: "Validation failed.",
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    const { currentPassword, newPassword } = validatedFields.data;
+    const user = auth.currentUser;
+
+    try {
+        // Re-authenticate the user to confirm their identity
+        if (user.email) {
+            const credential = EmailAuthProvider.credential(user.email, currentPassword);
+            await reauthenticateWithCredential(user, credential);
+        } else {
+            throw new Error("User email is not available for re-authentication.");
+        }
+        
+        // If re-authentication is successful, update the password
+        await updatePassword(user, newPassword);
+
+        return { success: true, message: 'Password updated successfully.' };
+
+    } catch (error: any) {
+        console.error("Password Change Error:", error);
+        let message = 'An unexpected error occurred.';
+        if (error.code === 'auth/wrong-password') {
+            return {
+                success: false,
+                message: 'Incorrect current password.',
+                errors: { currentPassword: ['The password you entered is incorrect.'] }
+            };
+        }
+        if(error.code === 'auth/too-many-requests') {
+             message = 'Too many attempts. Please try again later.';
+        }
+        return { success: false, message: message };
     }
 }

@@ -102,6 +102,12 @@ export default function Header() {
                           My Bookings
                       </DropdownMenuItem>
                   </Link>
+                    <Link href="/profile">
+                        <DropdownMenuItem>
+                            <UserIcon className="mr-2 h-4 w-4" />
+                            Profile
+                        </DropdownMenuItem>
+                    </Link>
                   {user.role === 'admin' && (
                     <>
                      <Link href="/admin">

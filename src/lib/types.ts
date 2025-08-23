@@ -47,6 +47,7 @@ export type User = {
   role: 'user' | 'admin';
   bookings?: Pick<Booking, 'rideId' | 'seats'>[];
   photoURL?: string;
+  dob?: string; // YYYY-MM-DD
 };
 
 export type PaymentMethod = 'esewa' | 'khalti' | 'imepay';

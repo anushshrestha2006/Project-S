@@ -1,7 +1,7 @@
 
 
 import { db } from './firebase';
-import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc, DocumentData, QuerySnapshot, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc, DocumentData, QuerySnapshot, deleteDoc, updateDoc } from 'firebase/firestore';
 import type { Ride, Booking, User, Seat, SeatStatus, PaymentDetails, FooterSettings } from './types';
 import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
@@ -416,4 +416,9 @@ export async function getFooterSettings(): Promise<FooterSettings> {
 export async function updateFooterSettings(settings: FooterSettings): Promise<void> {
     const docRef = doc(db, 'config', 'footerSettings');
     await setDoc(docRef, settings, { merge: true });
+}
+
+export async function updateUserProfileInDb(userId: string, data: Partial<Pick<User, 'name' | 'phoneNumber' | 'dob'>>): Promise<void> {
+    const userDocRef = doc(db, 'users', userId);
+    await updateDoc(userDocRef, data);
 }
