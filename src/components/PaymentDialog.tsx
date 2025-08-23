@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation';
 import type { PaymentDetails, PaymentMethod, User } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { ScrollArea } from './ui/scroll-area';
 
 interface PaymentDialogProps {
   isOpen: boolean;
@@ -107,7 +108,7 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails, paymentDetail
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md grid-rows-[auto,1fr,auto] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Complete Your Payment</DialogTitle>
           <DialogDescription>
@@ -117,96 +118,100 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails, paymentDetail
             }
           </DialogDescription>
         </DialogHeader>
-        <form ref={formRef} onSubmit={handleSubmit}>
-            <input type="hidden" name="rideId" value={bookingDetails.rideId} />
-            <input type="hidden" name="seats" value={JSON.stringify(bookingDetails.seats)} />
-            <input type="hidden" name="userId" value={bookingDetails.userId} />
-            <input type="hidden" name="passengerName" value={bookingDetails.passengerName} />
-            <input type="hidden" name="passengerPhone" value={bookingDetails.passengerPhone} />
-            <input type="hidden" name="paymentMethod" value={activeTab} />
-            <input type="hidden" name="userRole" value={bookingDetails.userRole} />
+        
+        <ScrollArea className="pr-6 -mr-6">
+            <form ref={formRef} onSubmit={handleSubmit} id="payment-form" className="space-y-4">
+                <input type="hidden" name="rideId" value={bookingDetails.rideId} />
+                <input type="hidden" name="seats" value={JSON.stringify(bookingDetails.seats)} />
+                <input type="hidden" name="userId" value={bookingDetails.userId} />
+                <input type="hidden" name="passengerName" value={bookingDetails.passengerName} />
+                <input type="hidden" name="passengerPhone" value={bookingDetails.passengerPhone} />
+                <input type="hidden" name="paymentMethod" value={activeTab} />
+                <input type="hidden" name="userRole" value={bookingDetails.userRole} />
 
-            {!isAdmin && (
-                <Tabs defaultValue="esewa" className="w-full" onValueChange={(val) => setActiveTab(val as PaymentMethod)}>
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="esewa">eSewa</TabsTrigger>
-                        <TabsTrigger value="khalti">Khalti</TabsTrigger>
-                        <TabsTrigger value="imepay">IMEPay</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="esewa">
-                        <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center p-4">
-                        {paymentDetails.esewa.qrUrl ? (
-                                <Image data-ai-hint="QR code" src={paymentDetails.esewa.qrUrl} width={300} height={300} alt="eSewa QR Code" className="object-contain" />
-                            ) : (
-                                <div className="text-center text-muted-foreground">
-                                    <p>QR Code not available.</p>
-                                    <p className="text-xs">Admin needs to upload it.</p>
-                                </div>
-                            )}
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="khalti">
-                        <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center p-4">
-                        {paymentDetails.khalti.qrUrl ? (
-                                <Image data-ai-hint="QR code" src={paymentDetails.khalti.qrUrl} width={300} height={300} alt="Khalti QR Code" className="object-contain" />
-                            ) : (
-                                <div className="text-center text-muted-foreground">
-                                    <p>QR Code not available.</p>
-                                    <p className="text-xs">Admin needs to upload it.</p>
-                                </div>
-                            )}
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="imepay">
-                        <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center p-4">
-                        {paymentDetails.imepay.qrUrl ? (
-                                <Image data-ai-hint="QR code" src={paymentDetails.imepay.qrUrl} width={300} height={300} alt="IMEPay QR Code" className="object-contain" />
-                            ) : (
-                                <div className="text-center text-muted-foreground">
-                                    <p>QR Code not available.</p>
-                                    <p className="text-xs">Admin needs to upload it.</p>
-                                </div>
-                            )}
-                        </div>
-                    </TabsContent>
-                </Tabs>
-            )}
-            
-            {isAdmin ? (
-                 <div className="grid w-full items-center gap-1.5 mt-4">
-                    <Label htmlFor="transactionId">Transaction ID</Label>
-                    <Input type="text" id="transactionId" name="transactionId" required placeholder="e.g., Cash, Manual Entry" />
-                    {formState?.errors?.transactionId && <p className="text-xs text-destructive">{formState.errors.transactionId[0]}</p>}
-                </div>
-            ) : (
-                <div className="grid w-full items-center gap-1.5 mt-4">
-                    <Label htmlFor="paymentScreenshot">Payment Screenshot</Label>
-                    <Input type="file" id="paymentScreenshot" name="paymentScreenshot" required accept="image/png, image/jpeg, image/webp" onChange={handleFileChange} />
-                    {formState?.errors?.paymentScreenshot && <p className="text-xs text-destructive">{formState.errors.paymentScreenshot[0]}</p>}
-                </div>
-            )}
+                {!isAdmin && (
+                    <Tabs defaultValue="esewa" className="w-full" onValueChange={(val) => setActiveTab(val as PaymentMethod)}>
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="esewa">eSewa</TabsTrigger>
+                            <TabsTrigger value="khalti">Khalti</TabsTrigger>
+                            <TabsTrigger value="imepay">IMEPay</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="esewa">
+                            <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center p-4">
+                            {paymentDetails.esewa.qrUrl ? (
+                                    <Image data-ai-hint="QR code" src={paymentDetails.esewa.qrUrl} width={300} height={300} alt="eSewa QR Code" className="object-contain" />
+                                ) : (
+                                    <div className="text-center text-muted-foreground">
+                                        <p>QR Code not available.</p>
+                                        <p className="text-xs">Admin needs to upload it.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="khalti">
+                            <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center p-4">
+                            {paymentDetails.khalti.qrUrl ? (
+                                    <Image data-ai-hint="QR code" src={paymentDetails.khalti.qrUrl} width={300} height={300} alt="Khalti QR Code" className="object-contain" />
+                                ) : (
+                                    <div className="text-center text-muted-foreground">
+                                        <p>QR Code not available.</p>
+                                        <p className="text-xs">Admin needs to upload it.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="imepay">
+                            <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center p-4">
+                            {paymentDetails.imepay.qrUrl ? (
+                                    <Image data-ai-hint="QR code" src={paymentDetails.imepay.qrUrl} width={300} height={300} alt="IMEPay QR Code" className="object-contain" />
+                                ) : (
+                                    <div className="text-center text-muted-foreground">
+                                        <p>QR Code not available.</p>
+                                        <p className="text-xs">Admin needs to upload it.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                )}
+                
+                {isAdmin ? (
+                    <div className="grid w-full items-center gap-1.5 pt-4">
+                        <Label htmlFor="transactionId">Transaction ID</Label>
+                        <Input type="text" id="transactionId" name="transactionId" required placeholder="e.g., Cash, Manual Entry" />
+                        {formState?.errors?.transactionId && <p className="text-xs text-destructive">{formState.errors.transactionId[0]}</p>}
+                    </div>
+                ) : (
+                    <div className="grid w-full items-center gap-1.5 pt-4">
+                        <Label htmlFor="paymentScreenshot">Payment Screenshot</Label>
+                        <Input type="file" id="paymentScreenshot" name="paymentScreenshot" required accept="image/png, image/jpeg, image/webp" onChange={handleFileChange} />
+                        {formState?.errors?.paymentScreenshot && <p className="text-xs text-destructive">{formState.errors.paymentScreenshot[0]}</p>}
+                    </div>
+                )}
 
-            {!isAdmin && previewUrl && (
-                <div className="mt-2 flex flex-col items-center gap-2">
-                    <p className="font-semibold text-muted-foreground text-sm">Screenshot Preview</p>
-                    <Image src={previewUrl} alt="Payment screenshot preview" width={100} height={100} className="object-contain rounded-md border p-1" />
-                </div>
+                {!isAdmin && previewUrl && (
+                    <div className="mt-2 flex flex-col items-center gap-2">
+                        <p className="font-semibold text-muted-foreground text-sm">Screenshot Preview</p>
+                        <Image src={previewUrl} alt="Payment screenshot preview" width={100} height={100} className="object-contain rounded-md border p-1" />
+                    </div>
+                )}
+            </form>
+        </ScrollArea>
+        
+        <DialogFooter className="pt-4">
+            <DialogClose asChild>
+                <Button type="button" variant="secondary">Cancel</Button>
+            </DialogClose>
+                <Button type="submit" form="payment-form" disabled={isSubmitting}>
+                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</> : 'Complete Booking'}
+            </Button>
+        </DialogFooter>
+        
+        {formState?.errors?.server && (
+            <Alert variant="destructive">
+                <AlertDescription>{formState.errors.server[0]}</AlertDescription>
+            </Alert>
             )}
-            
-             <DialogFooter className="mt-6">
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary">Cancel</Button>
-                </DialogClose>
-                 <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</> : 'Complete Booking'}
-                </Button>
-            </DialogFooter>
-             {formState?.errors?.server && (
-                <Alert variant="destructive" className="mt-4">
-                    <AlertDescription>{formState.errors.server[0]}</AlertDescription>
-                </Alert>
-             )}
-        </form>
       </DialogContent>
     </Dialog>
   );
