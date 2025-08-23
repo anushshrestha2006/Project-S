@@ -35,6 +35,8 @@ const UserBookingSchema = BookingBaseSchema.extend({
 const AdminBookingSchema = BookingBaseSchema.extend({
     userRole: z.literal('admin'),
     transactionId: z.string().min(1, "Transaction ID is required for admin bookings."),
+    // We add this but make it optional so the schema doesn't complain. It will be empty for admins.
+    paymentScreenshot: z.instanceof(File).optional(),
 });
 
 const BookingFormSchema = z.discriminatedUnion("userRole", [UserBookingSchema, AdminBookingSchema]);
@@ -67,9 +69,8 @@ export async function processBooking(prevState: BookingState | null, formData: F
     passengerPhone: formData.get('passengerPhone'),
     paymentMethod: formData.get('paymentMethod'),
     userRole: userRole,
-    // Conditionally include fields based on role
-    ...(userRole === 'user' && { paymentScreenshot: formData.get('paymentScreenshot') }),
-    ...(userRole === 'admin' && { transactionId: formData.get('transactionId') }),
+    paymentScreenshot: formData.get('paymentScreenshot'),
+    transactionId: formData.get('transactionId'),
   };
   
   const validatedFields = BookingFormSchema.safeParse(rawData);
@@ -103,7 +104,7 @@ export async function processBooking(prevState: BookingState | null, formData: F
     const createdBooking = await createBooking(bookingPayload);
     bookingId = createdBooking.id;
 
-    if (validatedFields.data.userRole === 'user') {
+    if (validatedFields.data.userRole === 'user' && validatedFields.data.paymentScreenshot) {
         const { paymentScreenshot } = validatedFields.data;
         const storagePath = `payment_screenshots/${bookingId}.${paymentScreenshot.type.split('/')[1]}`;
         const storageRef = ref(storage, storagePath);
@@ -118,7 +119,24 @@ export async function processBooking(prevState: BookingState | null, formData: F
     
   } catch (error) {
     console.error("Booking Error:", error);
-    const errorMessage = (error instanceof Error) ? error.message : "An unknown error occurred.";
+    let errorMessage = "An unknown error occurred.";
+     if (error instanceof Error) {
+        // Check for specific Firebase Storage error codes
+        if ('code' in error && typeof error.code === 'string') {
+            switch (error.code) {
+                case 'storage/unauthorized':
+                    errorMessage = "You do not have permission to upload files. Please ensure you are logged in.";
+                    break;
+                case 'storage/object-not-found':
+                     errorMessage = "The file path could not be found. Please contact support.";
+                    break;
+                default:
+                    errorMessage = `Firebase Storage Error: ${error.message} (${error.code})`;
+            }
+        } else {
+             errorMessage = error.message;
+        }
+    }
 
     return {
       errors: { server: [errorMessage] },
@@ -407,3 +425,5 @@ export async function changeUserPassword(prevState: any, formData: FormData): Pr
         return { success: false, message: message };
     }
 }
+
+    
