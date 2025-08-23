@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { PaymentDialog } from './PaymentDialog';
 import { getPaymentDetails } from '@/lib/data';
+import { Separator } from './ui/separator';
 
 interface SeatProps {
   seat: SeatType;
@@ -64,12 +65,18 @@ function Seat({ seat, isSelected, onSelect }: SeatProps) {
 }
 
 
+interface PassengerDetail {
+    seatNumber: number;
+    name: string;
+    phone: string;
+}
+
 export function SeatSelection({ ride }: { ride: Ride }) {
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [user, setUser] = useState<User | null>(null);
-  const [passengerInfo, setPassengerInfo] = useState({ name: '', phone: '' });
+  const [passengers, setPassengers] = useState<PassengerDetail[]>([]);
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [formErrors, setFormErrors] = useState<{name?: string, phone?: string}>({});
+  const [formErrors, setFormErrors] = useState<Record<number, {name?: string, phone?: string}>>({});
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   
   const { toast } = useToast();
@@ -80,7 +87,6 @@ export function SeatSelection({ ride }: { ride: Ride }) {
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
-      setPassengerInfo({ name: parsedUser.name || '', phone: parsedUser.phoneNumber || '' });
     }
     
     async function fetchPaymentDetails() {
@@ -91,29 +97,54 @@ export function SeatSelection({ ride }: { ride: Ride }) {
   }, []);
 
   const handleSelectSeat = (seatNumber: number) => {
-    setSelectedSeats((prev) =>
-      prev.includes(seatNumber)
-        ? prev.filter((s) => s !== seatNumber)
-        : [...prev, seatNumber]
-    );
+    const isSelected = selectedSeats.includes(seatNumber);
+    if (isSelected) {
+        // Deselecting seat
+        setSelectedSeats(prev => prev.filter(s => s !== seatNumber));
+        setPassengers(prev => prev.filter(p => p.seatNumber !== seatNumber));
+    } else {
+        // Selecting seat
+        setSelectedSeats(prev => [...prev, seatNumber]);
+        const newPassenger: PassengerDetail = {
+            seatNumber,
+            // Pre-fill if this is the first seat selected by a logged-in user
+            name: passengers.length === 0 && user ? user.name : '',
+            phone: passengers.length === 0 && user ? user.phoneNumber || '' : ''
+        };
+        setPassengers(prev => [...prev, newPassenger].sort((a,b) => a.seatNumber - b.seatNumber));
+    }
+  };
+
+  const handlePassengerDetailChange = (seatNumber: number, field: 'name' | 'phone', value: string) => {
+      setPassengers(prev => prev.map(p => 
+          p.seatNumber === seatNumber ? { ...p, [field]: value } : p
+      ));
   };
   
   const handleProceedToPayment = () => {
-    const errors: {name?: string, phone?: string} = {};
-    if (!passengerInfo.name || passengerInfo.name.length < 2) {
-      errors.name = 'Passenger name must be at least 2 characters.';
-    }
-    if (!passengerInfo.phone || !/^\d{10}$/.test(passengerInfo.phone)) {
-        errors.phone = 'Please enter a valid 10-digit phone number.';
-    }
+    const errors: Record<number, {name?: string, phone?: string}> = {};
+    let hasErrors = false;
+    
+    passengers.forEach(p => {
+        const passengerErrors: {name?: string, phone?: string} = {};
+        if (!p.name || p.name.length < 2) {
+            passengerErrors.name = 'Name must be at least 2 characters.';
+            hasErrors = true;
+        }
+        if (!p.phone || !/^\d{10}$/.test(p.phone)) {
+            passengerErrors.phone = 'Enter a valid 10-digit phone number.';
+            hasErrors = true;
+        }
+        if (Object.keys(passengerErrors).length > 0) {
+            errors[p.seatNumber] = passengerErrors;
+        }
+    });
 
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
+    setFormErrors(errors);
 
-    setFormErrors({});
-    setPaymentDialogOpen(true);
+    if (!hasErrors) {
+      setPaymentDialogOpen(true);
+    }
   };
 
 
@@ -198,6 +229,9 @@ export function SeatSelection({ ride }: { ride: Ride }) {
     return seatLayout;
   };
 
+  const passengerNameForBooking = passengers.map(p => p.name).join(', ');
+  const passengerPhoneForBooking = passengers.length > 0 ? passengers[0].phone : '';
+
   return (
     <>
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -233,31 +267,54 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                         </div>
                     ) : (
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="passengerName">Passenger Name</Label>
-                            <Input id="passengerName" name="passengerName" placeholder="Full Name" value={passengerInfo.name} onChange={e => setPassengerInfo({...passengerInfo, name: e.target.value})} required />
-                            {formErrors.name && <p className="text-xs text-destructive">{formErrors.name}</p>}
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="passengerPhone">Phone Number</Label>
-                            <Input id="passengerPhone" name="passengerPhone" placeholder="98XXXXXXXX" value={passengerInfo.phone} onChange={e => setPassengerInfo({...passengerInfo, phone: e.target.value})} required />
-                             {formErrors.phone && <p className="text-xs text-destructive">{formErrors.phone}</p>}
-                        </div>
+                        {passengers.length > 0 ? (
+                           passengers.map((passenger, index) => (
+                                <div key={passenger.seatNumber} className="space-y-4 border-b pb-4 last:border-b-0 last:pb-0">
+                                    <h4 className="font-semibold text-lg text-primary">Seat {passenger.seatNumber}</h4>
+                                     <div className="space-y-2">
+                                        <Label htmlFor={`passengerName-${passenger.seatNumber}`}>Passenger Name</Label>
+                                        <Input 
+                                            id={`passengerName-${passenger.seatNumber}`} 
+                                            name={`passengerName-${passenger.seatNumber}`}
+                                            placeholder="Full Name" 
+                                            value={passenger.name} 
+                                            onChange={e => handlePassengerDetailChange(passenger.seatNumber, 'name', e.target.value)} 
+                                            required 
+                                        />
+                                        {formErrors[passenger.seatNumber]?.name && <p className="text-xs text-destructive">{formErrors[passenger.seatNumber]?.name}</p>}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor={`passengerPhone-${passenger.seatNumber}`}>Phone Number</Label>
+                                        <Input 
+                                            id={`passengerPhone-${passenger.seatNumber}`} 
+                                            name={`passengerPhone-${passenger.seatNumber}`}
+                                            placeholder="98XXXXXXXX" 
+                                            value={passenger.phone} 
+                                            onChange={e => handlePassengerDetailChange(passenger.seatNumber, 'phone', e.target.value)} 
+                                            required 
+                                        />
+                                        {formErrors[passenger.seatNumber]?.phone && <p className="text-xs text-destructive">{formErrors[passenger.seatNumber]?.phone}</p>}
+                                    </div>
+                                </div>
+                           ))
+                        ) : (
+                            <div className="text-center text-muted-foreground py-8">
+                                <p>Select one or more seats to begin.</p>
+                            </div>
+                        )}
 
-                        <div className="border-t pt-4 space-y-3">
-                             <div className="flex justify-between font-medium">
-                                <span className="text-muted-foreground flex items-center gap-1"><UserIcon className="w-4 h-4" /> x {selectedSeats.length} Seat(s)</span>
-                                <strong>NPR {ride.price.toLocaleString()} / seat</strong>
-                            </div>
-                            <div className="flex justify-between font-medium">
-                                <span className="text-muted-foreground">Selected Seats:</span>
-                                <strong>{selectedSeats.join(', ') || 'None'}</strong>
-                            </div>
-                             <div className="flex justify-between text-xl font-bold">
-                                <span className="text-muted-foreground">Total Price:</span>
-                                <span>NPR {totalPrice.toLocaleString()}</span>
-                            </div>
-                        </div>
+                        {selectedSeats.length > 0 && (
+                             <div className="border-t pt-4 space-y-3">
+                                <div className="flex justify-between font-medium">
+                                    <span className="text-muted-foreground flex items-center gap-1"><UserIcon className="w-4 h-4" /> x {selectedSeats.length} Seat(s)</span>
+                                    <strong>NPR {ride.price.toLocaleString()} / seat</strong>
+                                </div>
+                                <div className="flex justify-between text-xl font-bold">
+                                    <span className="text-muted-foreground">Total Price:</span>
+                                    <span>NPR {totalPrice.toLocaleString()}</span>
+                                </div>
+                             </div>
+                        )}
 
                         {selectedSeats.length > 0 ? (
                             <Button onClick={handleProceedToPayment} className="w-full text-lg py-6" disabled={!paymentDetails}>
@@ -266,7 +323,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                         ) : (
                              <Button disabled className="w-full text-lg py-6">Select a seat to book</Button>
                         )}
-                         {selectedSeats.length > 0 && formErrors.name && <p className="text-sm text-destructive text-center pt-2">Please fix the errors above.</p>}
+                         {Object.keys(formErrors).length > 0 && <p className="text-sm text-destructive text-center pt-2">Please fix the errors above.</p>}
                     </div>
                     )}
                 </CardContent>
@@ -281,8 +338,10 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                 rideId: ride.id,
                 userId: user.id,
                 seats: selectedSeats,
-                passengerName: passengerInfo.name,
-                passengerPhone: passengerInfo.phone,
+                // For simplicity, we'll use the combined names and the first phone number for the main booking record.
+                // In a more complex system, you might store all passenger details in the booking document.
+                passengerName: passengerNameForBooking,
+                passengerPhone: passengerPhoneForBooking,
                 totalPrice: totalPrice,
             }}
             paymentDetails={paymentDetails}
@@ -292,3 +351,5 @@ export function SeatSelection({ ride }: { ride: Ride }) {
     </>
   );
 }
+
+    
