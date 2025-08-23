@@ -19,9 +19,20 @@ import {
   DialogTrigger,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus, Eye, Clock } from "lucide-react";
+import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus, Eye, Clock, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format, isSameDay } from "date-fns";
 import { auth } from "@/lib/firebase";
@@ -41,6 +52,54 @@ import { useDebouncedCallback } from "use-debounce";
 import { ClearBookingsButton } from "./ClearBookingsButton";
 import { TicketContent } from "../Ticket";
 
+
+function UpdateStatusButton({ 
+    booking, 
+    newStatus, 
+    onUpdate,
+    isPending
+} : { 
+    booking: Booking, 
+    newStatus: 'confirmed' | 'cancelled', 
+    onUpdate: (bookingId: string, rideId: string, seats: number[], newStatus: 'confirmed' | 'cancelled') => void,
+    isPending: boolean 
+}) {
+    const isConfirm = newStatus === 'confirmed';
+    const buttonVariant = isConfirm ? 'outline' : 'outline';
+    const buttonClasses = isConfirm 
+        ? "text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" 
+        : "text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700";
+    const Icon = isConfirm ? CheckCircle : XCircle;
+    const title = `Are you sure you want to ${isConfirm ? 'confirm' : 'cancel'} this booking?`;
+    const description = `This will update the booking status to "${newStatus}" and ${isConfirm ? "book the seats" : "make the seats available again"}. This action cannot be immediately undone.`;
+    const actionText = `Yes, ${isConfirm ? 'Confirm' : 'Cancel'} Booking`;
+
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                 <Button size="sm" variant={buttonVariant} className={buttonClasses} disabled={isPending}>
+                    <Icon className="mr-2 h-4 w-4" /> {isConfirm ? 'Confirm' : 'Cancel'}
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>{title}</AlertDialogTitle>
+                    <AlertDialogDescription>{description}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Dismiss</AlertDialogCancel>
+                    <AlertDialogAction 
+                        onClick={() => onUpdate(booking.id, booking.rideId, booking.seats, newStatus)}
+                        className={isConfirm ? '' : 'bg-destructive hover:bg-destructive/90'}
+                    >
+                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Icon className="mr-2 h-4 w-4" />}
+                        {actionText}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
 
 export function BookingTable({ initialBookings }: { initialBookings: Booking[] }) {
     const [bookings, setBookings] = useState(initialBookings);
@@ -316,12 +375,18 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                         <div className="flex gap-2 items-center">
                                            {booking.status === 'pending-payment' && (
                                               <>
-                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleStatusUpdate(booking.id, booking.rideId, booking.seats, 'confirmed')} disabled={isPending}>
-                                                    <CheckCircle className="mr-2 h-4 w-4"/> Confirm
-                                                </Button>
-                                                <Button size="sm" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleStatusUpdate(booking.id, booking.rideId, booking.seats, 'cancelled')} disabled={isPending}>
-                                                     <XCircle className="mr-2 h-4 w-4"/> Cancel
-                                                </Button>
+                                                <UpdateStatusButton 
+                                                    booking={booking}
+                                                    newStatus="confirmed"
+                                                    onUpdate={handleStatusUpdate}
+                                                    isPending={isPending}
+                                                />
+                                                <UpdateStatusButton 
+                                                    booking={booking}
+                                                    newStatus="cancelled"
+                                                    onUpdate={handleStatusUpdate}
+                                                    isPending={isPending}
+                                                />
                                               </>
                                            )}
                                             {booking.status === 'confirmed' && (
@@ -355,5 +420,3 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         </div>
     );
 }
-
-    
