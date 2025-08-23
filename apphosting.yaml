@@ -5,3 +5,9 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+serving:
+  # This section is required for App Hosting to serve your Next.js app.
+  # It tells App Hosting to use the Next.js framework adapter.
+  frameworks:
+    - name: nextjs
+      target: .
