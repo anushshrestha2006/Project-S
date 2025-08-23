@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Skeleton } from './ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { format, isPast } from 'date-fns';
+import { format, isPast, parse } from 'date-fns';
 import { Bus, Calendar, Clock, Ticket, ArrowRight, Armchair, Download, Loader2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -149,23 +149,25 @@ export function MyBookings({ userId }: { userId: string }) {
   }, [isDownloading, bookingToDownload]);
 
   const now = new Date();
+
+  const getRideDateTime = (ride: Ride) => parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
   
   const pendingConfirmationBookings = bookings.filter(b => {
     if (!b.rideDetails) return false;
-    const rideDate = new Date(b.rideDetails.date);
-    return b.status === 'pending-payment' && !isPast(rideDate);
+    const rideDateTime = getRideDateTime(b.rideDetails);
+    return b.status === 'pending-payment' && !isPast(rideDateTime);
   });
 
   const upcomingBookings = bookings.filter(b => {
     if (!b.rideDetails) return false;
-    const rideDate = new Date(b.rideDetails.date);
-    return b.status === 'confirmed' && !isPast(rideDate);
+    const rideDateTime = getRideDateTime(b.rideDetails);
+    return b.status === 'confirmed' && !isPast(rideDateTime);
   });
 
   const pastBookings = bookings.filter(b => {
       if (!b.rideDetails) return true; // If ride details are missing for some reason, consider it past.
-      const rideDate = new Date(b.rideDetails.date);
-      return isPast(rideDate) || b.status === 'cancelled';
+      const rideDateTime = getRideDateTime(b.rideDetails);
+      return isPast(rideDateTime) || b.status === 'cancelled';
   });
 
   const renderBookingList = (list: Booking[], category: 'upcoming' | 'pending' | 'past') => {
