@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -338,9 +339,8 @@ export function SeatSelection({ ride }: { ride: Ride }) {
             bookingDetails={{
                 rideId: ride.id,
                 userId: user.id,
+                userRole: user.role,
                 seats: selectedSeats,
-                // For simplicity, we'll use the combined names and the first phone number for the main booking record.
-                // In a more complex system, you might store all passenger details in the booking document.
                 passengerName: passengerNameForBooking,
                 passengerPhone: passengerPhoneForBooking,
                 totalPrice: totalPrice,

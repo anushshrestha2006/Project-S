@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -12,19 +13,34 @@ import type { User, FooterSettings } from './types';
 import { format } from 'date-fns';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 
-const BookingFormSchema = z.object({
+const BookingBaseSchema = z.object({
   rideId: z.string(),
   userId: z.string({ required_error: 'User must be logged in to book.'}),
   seats: z.preprocess((val) => JSON.parse(val as string), z.array(z.number()).min(1, 'Please select at least one seat.')),
   passengerName: z.string().min(2, 'Passenger name must be at least 2 characters.'),
   passengerPhone: z.string().regex(/^\d{10}$/, 'Please enter a valid 10-digit phone number.'),
   paymentMethod: z.enum(['esewa', 'khalti', 'imepay']),
-  paymentScreenshot: z
-    .instanceof(File)
-    .refine((file) => file.size > 0, "Payment screenshot is required.")
-    .refine((file) => file.size < 4 * 1024 * 1024, "Image must be less than 4MB.")
-    .refine((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type), "Only .jpg, .png, and .webp formats are supported."),
+  userRole: z.enum(['user', 'admin']),
 });
+
+const UserBookingSchema = BookingBaseSchema.extend({
+    userRole: z.literal('user'),
+    paymentScreenshot: z
+        .instanceof(File)
+        .refine((file) => file.size > 0, "Payment screenshot is required.")
+        .refine((file) => file.size < 4 * 1024 * 1024, "Image must be less than 4MB.")
+        .refine((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type), "Only .jpg, .png, and .webp formats are supported."),
+    transactionId: z.string().optional(),
+});
+
+const AdminBookingSchema = BookingBaseSchema.extend({
+    userRole: z.literal('admin'),
+    transactionId: z.string().min(1, "Transaction ID is required for admin bookings."),
+    paymentScreenshot: z.instanceof(File).optional(),
+});
+
+const BookingFormSchema = z.discriminatedUnion("userRole", [UserBookingSchema, AdminBookingSchema]);
+
 
 export type BookingState = {
   errors?: {
@@ -35,6 +51,7 @@ export type BookingState = {
     passengerPhone?: string[];
     paymentMethod?: string[];
     paymentScreenshot?: string[];
+    transactionId?: string[];
     server?: string[];
   };
   message?: string | null;
@@ -49,7 +66,9 @@ export async function processBooking(prevState: BookingState | null, formData: F
     passengerName: formData.get('passengerName'),
     passengerPhone: formData.get('passengerPhone'),
     paymentMethod: formData.get('paymentMethod'),
+    userRole: formData.get('userRole'),
     paymentScreenshot: formData.get('paymentScreenshot'),
+    transactionId: formData.get('transactionId'),
   });
 
   if (!validatedFields.success) {
@@ -60,33 +79,39 @@ export async function processBooking(prevState: BookingState | null, formData: F
     };
   }
   
-  const { rideId, seats, passengerName, passengerPhone, userId, paymentMethod, paymentScreenshot } = validatedFields.data;
+  const { rideId, seats, passengerName, passengerPhone, userId, paymentMethod, userRole } = validatedFields.data;
 
   let bookingId: string;
   try {
-     // First, create the booking record without the screenshot URL
-    const createdBooking = await createBooking({
-      rideId,
-      seats,
-      passengerName,
-      passengerPhone,
-      userId,
-      status: 'pending-payment',
-      paymentMethod,
-    });
+     const bookingPayload: any = {
+        rideId,
+        seats,
+        passengerName,
+        passengerPhone,
+        userId,
+        paymentMethod,
+        status: userRole === 'admin' ? 'confirmed' : 'pending-payment',
+     };
+
+     if(userRole === 'admin') {
+         bookingPayload.transactionId = validatedFields.data.transactionId;
+     }
+
+    const createdBooking = await createBooking(bookingPayload);
     bookingId = createdBooking.id;
 
-    // Now, upload the screenshot
-    const storagePath = `payment_screenshots/${bookingId}.${paymentScreenshot.type.split('/')[1]}`;
-    const storageRef = ref(storage, storagePath);
+    if (userRole === 'user') {
+        const { paymentScreenshot } = validatedFields.data;
+        const storagePath = `payment_screenshots/${bookingId}.${paymentScreenshot.type.split('/')[1]}`;
+        const storageRef = ref(storage, storagePath);
 
-    const arrayBuffer = await paymentScreenshot.arrayBuffer();
-    await uploadBytes(storageRef, arrayBuffer, { contentType: paymentScreenshot.type });
-    const downloadURL = await getDownloadURL(storageRef);
+        const arrayBuffer = await paymentScreenshot.arrayBuffer();
+        await uploadBytes(storageRef, arrayBuffer, { contentType: paymentScreenshot.type });
+        const downloadURL = await getDownloadURL(storageRef);
 
-    // Finally, update the booking record with the screenshot URL
-    const bookingRef = doc(db, 'bookings', bookingId);
-    await updateDoc(bookingRef, { paymentScreenshotUrl: downloadURL });
+        const bookingRef = doc(db, 'bookings', bookingId);
+        await updateDoc(bookingRef, { paymentScreenshotUrl: downloadURL });
+    }
     
   } catch (error) {
     console.error("Booking Error:", error);
@@ -101,8 +126,15 @@ export async function processBooking(prevState: BookingState | null, formData: F
 
   // Revalidate the booking page to show updated seat status
   revalidatePath(`/booking/${rideId}`);
-  // Don't redirect here, let the client-side handle it after showing a toast.
-  return { message: `Booking successful! Your request for seat(s) ${seats.join(', ')} is pending confirmation.`, success: true };
+  if(userRole === 'admin') {
+      revalidatePath('/admin');
+  }
+  
+  const message = userRole === 'admin' 
+    ? `Booking successful! Seat(s) ${seats.join(', ')} have been confirmed.`
+    : `Booking successful! Your request for seat(s) ${seats.join(', ')} is pending confirmation.`;
+  
+  return { message, success: true };
 }
 
 

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, useTransition } from "react";
@@ -32,7 +33,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus, Eye, Clock, Loader2, Link as LinkIcon } from "lucide-react";
+import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus, Eye, Clock, Loader2, Link as LinkIcon, Hash } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format, isSameDay } from "date-fns";
 import { auth } from "@/lib/firebase";
@@ -167,7 +168,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     }
 
     const handleExport = () => {
-        const headers = ["Ticket ID", "Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Screenshot URL", "Ride From", "Ride To", "Ride Date", "Departure Time", "Vehicle Type"];
+        const headers = ["Ticket ID", "Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Screenshot URL", "Transaction ID", "Ride From", "Ride To", "Ride Date", "Departure Time", "Vehicle Type"];
         const csvRows = [headers.join(",")];
         
         filteredBookings.forEach(booking => {
@@ -184,6 +185,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 booking.status,
                 booking.paymentMethod || "",
                 booking.paymentScreenshotUrl || "",
+                booking.transactionId || "",
                 booking.rideDetails.from,
                 booking.rideDetails.to,
                 booking.rideDetails.date,
@@ -355,8 +357,12 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                             <a href={booking.paymentScreenshotUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
                                                <LinkIcon className="h-3 w-3" /> View Screenshot
                                             </a>
+                                        ) : booking.transactionId ? (
+                                             <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                <Hash className="h-3 w-3" /> {booking.transactionId}
+                                            </div>
                                         ) : (
-                                            <div className="text-xs text-muted-foreground">No screenshot</div>
+                                            <div className="text-xs text-muted-foreground">N/A</div>
                                         )}
                                     </TableCell>
                                      <TableCell>

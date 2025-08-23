@@ -37,6 +37,7 @@ export type Booking = {
   status: BookingStatus;
   paymentMethod?: 'esewa' | 'khalti' | 'imepay';
   paymentScreenshotUrl?: string;
+  transactionId?: string; // For admin bookings
 };
 
 export type User = {
