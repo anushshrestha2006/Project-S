@@ -13,7 +13,7 @@ import type { User, FooterSettings } from './types';
 import { format } from 'date-fns';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 
-const BookingBaseSchema = z.object({
+const BookingFormSchema = z.object({
   rideId: z.string(),
   userId: z.string({ required_error: 'User must be logged in to book.'}),
   seats: z.preprocess((val) => JSON.parse(val as string), z.array(z.number()).min(1, 'Please select at least one seat.')),
@@ -21,23 +21,27 @@ const BookingBaseSchema = z.object({
   passengerPhone: z.string().regex(/^\d{10}$/, 'Please enter a valid 10-digit phone number.'),
   paymentMethod: z.enum(['esewa', 'khalti', 'imepay']),
   userRole: z.enum(['user', 'admin']),
+  paymentScreenshot: z.any().optional(),
+  transactionId: z.string().optional(),
+}).superRefine((data, ctx) => {
+    if (data.userRole === 'admin') {
+        if (!data.transactionId || data.transactionId.trim() === '') {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['transactionId'],
+                message: 'Transaction ID is required for admin bookings.',
+            });
+        }
+    } else { // userRole is 'user'
+        if (!(data.paymentScreenshot instanceof File) || data.paymentScreenshot.size === 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['paymentScreenshot'],
+                message: 'Payment screenshot is required.',
+            });
+        }
+    }
 });
-
-const UserBookingSchema = BookingBaseSchema.extend({
-    userRole: z.literal('user'),
-    paymentScreenshot: z
-        .instanceof(File, { message: "Payment screenshot is required." })
-        .refine((file) => file.size > 0, "Payment screenshot is required."),
-    transactionId: z.string().optional(),
-});
-
-const AdminBookingSchema = BookingBaseSchema.extend({
-    userRole: z.literal('admin'),
-    transactionId: z.string().min(1, "Transaction ID is required for admin bookings."),
-    paymentScreenshot: z.instanceof(File).optional(),
-});
-
-const BookingFormSchema = z.discriminatedUnion("userRole", [UserBookingSchema, AdminBookingSchema]);
 
 
 export type BookingState = {
@@ -102,7 +106,7 @@ export async function processBooking(prevState: BookingState | null, formData: F
     const createdBooking = await createBooking(bookingPayload);
     bookingId = createdBooking.id;
 
-    if (validatedFields.data.userRole === 'user' && validatedFields.data.paymentScreenshot) {
+    if (validatedFields.data.userRole === 'user' && validatedFields.data.paymentScreenshot instanceof File) {
         const { paymentScreenshot } = validatedFields.data;
         const storagePath = `payment_screenshots/${bookingId}.${paymentScreenshot.type.split('/')[1]}`;
         const storageRef = ref(storage, storagePath);
@@ -123,7 +127,7 @@ export async function processBooking(prevState: BookingState | null, formData: F
         if ('code' in error && typeof error.code === 'string') {
             switch (error.code) {
                 case 'storage/unauthorized':
-                    errorMessage = "You do not have permission to upload files. Please ensure you are logged in.";
+                    errorMessage = "You do not have permission to upload files. Please ensure you are logged in and check Firebase Storage rules.";
                     break;
                 case 'storage/object-not-found':
                      errorMessage = "The file path could not be found. Please contact support.";
