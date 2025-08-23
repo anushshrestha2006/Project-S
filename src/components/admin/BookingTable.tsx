@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus, Eye } from "lucide-react";
+import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus, Eye, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format, isSameDay } from "date-fns";
 import { auth } from "@/lib/firebase";
@@ -47,6 +47,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     const [dateFilter, setDateFilter] = useState<Date | undefined>();
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>("all");
+    const [timeFilter, setTimeFilter] = useState<string>("all");
     const [ticketIdFilter, setTicketIdFilter] = useState<string>("");
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const router = useRouter();
@@ -87,11 +88,12 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
             const dateMatch = !dateFilter || format(rideDate, 'yyyy-MM-dd') === format(dateFilter, 'yyyy-MM-dd');
             const statusMatch = statusFilter === 'all' || booking.status === statusFilter;
             const vehicleMatch = vehicleTypeFilter === 'all' || booking.rideDetails.vehicleType === vehicleTypeFilter;
+            const timeMatch = timeFilter === 'all' || booking.rideDetails.departureTime === timeFilter;
             const idMatch = !ticketIdFilter || (booking.ticketId && booking.ticketId.toLowerCase().includes(ticketIdFilter.toLowerCase()));
 
-            return dateMatch && statusMatch && idMatch && vehicleMatch;
+            return dateMatch && statusMatch && idMatch && vehicleMatch && timeMatch;
         });
-    }, [bookings, dateFilter, statusFilter, ticketIdFilter, vehicleTypeFilter]);
+    }, [bookings, dateFilter, statusFilter, ticketIdFilter, vehicleTypeFilter, timeFilter]);
 
     const handleStatusUpdate = (bookingId: string, rideId: string, seats: number[], newStatus: 'confirmed' | 'cancelled') => {
         startTransition(async () => {
@@ -174,7 +176,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
 
     return (
         <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4 items-end">
                 <div className="grid w-full items-center gap-1.5 lg:col-span-2">
                     <Label htmlFor="ticketId">Search by Ticket ID</Label>
                     <div className="relative">
@@ -240,7 +242,20 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                         </SelectContent>
                     </Select>
                 </div>
-                 <div className="grid grid-cols-2 w-full items-center gap-2 lg:col-start-4">
+                 <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="timeFilter">Filter by Time</Label>
+                    <Select value={timeFilter} onValueChange={setTimeFilter}>
+                        <SelectTrigger id="timeFilter">
+                            <SelectValue placeholder="Select time" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Times</SelectItem>
+                            <SelectItem value="06:00 AM">06:00 AM</SelectItem>
+                            <SelectItem value="10:00 AM">10:00 AM</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="grid grid-cols-2 w-full items-center gap-2 lg:col-start-4 lg:col-span-2">
                      <Button onClick={handleExport} variant="outline">
                         <Download className="mr-2 h-4 w-4" />
                         Export
@@ -340,3 +355,5 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         </div>
     );
 }
+
+    
