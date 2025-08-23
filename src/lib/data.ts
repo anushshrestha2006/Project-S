@@ -257,7 +257,8 @@ export const createBooking = async (
 ): Promise<Booking> => {
     const rideRef = doc(db, 'rides', bookingData.rideId);
     
-    let newBookingId: string;
+    // newBookingId must be declared outside the transaction scope to be accessible later.
+    let newBookingId: string | null = null;
 
     await runTransaction(db, async (transaction) => {
         const rideDoc = await transaction.get(rideRef);
@@ -270,7 +271,11 @@ export const createBooking = async (
             }
             ride = generatedRide;
         } else {
-            ride = { ...generateRides().find(r => r.id === bookingData.rideId)!, ...rideDoc.data() } as Ride;
+            const templateRide = generateRides().find(r => r.id === bookingData.rideId);
+            if (!templateRide) {
+                throw new Error("Base ride template not found.");
+            }
+            ride = { ...templateRide, ...rideDoc.data() } as Ride;
         }
 
         bookingData.seats.forEach(seatNumber => {
@@ -282,12 +287,14 @@ export const createBooking = async (
 
         const newSeats = ride.seats.map(seat =>
             bookingData.seats.includes(seat.number)
-                ? { ...seat, status: 'locked' } // Mark as locked, not booked, until payment is confirmed
+                ? { ...seat, status: bookingData.status === 'confirmed' ? 'booked' : 'locked' } 
                 : seat
         );
         
+        // This set operation will create the ride document if it doesn't exist
         transaction.set(rideRef, { seats: newSeats }, { merge: true });
         
+        // Generate a new booking document reference WITHIN the transaction
         const newBookingRef = doc(collection(db, 'bookings'));
         newBookingId = newBookingRef.id;
 
@@ -302,7 +309,15 @@ export const createBooking = async (
         transaction.set(newBookingRef, bookingWithTimestamp);
     });
 
-    const newBookingSnap = await getDoc(doc(db, 'bookings', newBookingId!));
+    // After the transaction, if newBookingId is null, it means the transaction failed.
+    if (!newBookingId) {
+        throw new Error("Booking transaction failed to complete and did not return a booking ID.");
+    }
+
+    const newBookingSnap = await getDoc(doc(db, 'bookings', newBookingId));
+    if (!newBookingSnap.exists()) {
+        throw new Error("Failed to retrieve the newly created booking.");
+    }
     const newBookingData = newBookingSnap.data();
 
     return {

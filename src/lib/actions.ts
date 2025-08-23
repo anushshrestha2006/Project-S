@@ -28,12 +28,10 @@ const UserBookingFormSchema = z.object({
     paymentScreenshot: z
         .instanceof(File, { message: 'Payment screenshot is required.' })
         .refine((file) => file.size > 0, 'Payment screenshot cannot be empty.'),
-    transactionId: z.string().optional(),
 });
 
 const AdminBookingFormSchema = z.object({
     ...commonBookingFields,
-    paymentScreenshot: z.any().optional(),
     transactionId: z.string().min(1, 'Transaction ID is required for admin bookings.'),
 });
 
@@ -72,7 +70,7 @@ export async function processBooking(prevState: BookingState | null, formData: F
     };
   }
   
-  const { rideId, seats, passengerName, passengerPhone, userId, paymentMethod } = validatedFields.data;
+  const { rideId, seats, passengerName, passengerPhone, userId, paymentMethod, userRole: role } = validatedFields.data;
 
   try {
      const bookingPayload: any = {
@@ -82,23 +80,27 @@ export async function processBooking(prevState: BookingState | null, formData: F
         passengerPhone,
         userId,
         paymentMethod,
-        status: validatedFields.data.userRole === 'admin' ? 'confirmed' : 'pending-payment',
+        status: role === 'admin' ? 'confirmed' : 'pending-payment',
      };
 
-     if(validatedFields.data.userRole === 'admin') {
+     if(role === 'admin') {
          bookingPayload.transactionId = validatedFields.data.transactionId;
      }
 
     const createdBooking = await createBooking(bookingPayload);
     const bookingId = createdBooking.id;
 
-    if (validatedFields.data.userRole === 'user' && validatedFields.data.paymentScreenshot instanceof File) {
-        const { paymentScreenshot } = validatedFields.data;
-        const storagePath = `payment_screenshots/${bookingId}.${paymentScreenshot.type.split('/')[1]}`;
+    if (role === 'user') {
+        const screenshotFile = formData.get('paymentScreenshot') as File;
+        if (!screenshotFile || screenshotFile.size === 0) {
+             return { message: 'Payment screenshot is missing or empty.', success: false, errors: { server: ["Payment screenshot is missing or empty."] } };
+        }
+        
+        const storagePath = `payment_screenshots/${bookingId}.${screenshotFile.type.split('/')[1] || 'jpg'}`;
         const storageRef = ref(storage, storagePath);
 
-        const arrayBuffer = await paymentScreenshot.arrayBuffer();
-        await uploadBytes(storageRef, arrayBuffer, { contentType: paymentScreenshot.type });
+        const arrayBuffer = await screenshotFile.arrayBuffer();
+        await uploadBytes(storageRef, arrayBuffer, { contentType: screenshotFile.type });
         const downloadURL = await getDownloadURL(storageRef);
 
         const bookingRef = doc(db, 'bookings', bookingId);
@@ -109,7 +111,6 @@ export async function processBooking(prevState: BookingState | null, formData: F
     console.error("Booking Error:", error);
     let errorMessage = "An unknown error occurred during booking.";
     
-    // Specifically check for Firebase Storage errors, which are common.
     if (error.code && typeof error.code === 'string' && error.code.startsWith('storage/')) {
         switch (error.code) {
             case 'storage/unauthorized':
@@ -134,11 +135,11 @@ export async function processBooking(prevState: BookingState | null, formData: F
 
   // Revalidate the booking page to show updated seat status
   revalidatePath(`/booking/${rideId}`);
-  if(userRole === 'admin') {
+  if(role === 'admin') {
       revalidatePath('/admin');
   }
   
-  const message = userRole === 'admin' 
+  const message = role === 'admin' 
     ? `Booking successful! Seat(s) ${seats.join(', ')} have been confirmed.`
     : `Booking successful! Your request for seat(s) ${seats.join(', ')} is pending confirmation.`;
   
