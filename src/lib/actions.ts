@@ -13,7 +13,7 @@ import type { User, FooterSettings } from './types';
 import { format } from 'date-fns';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 
-const BookingFormSchema = z.object({
+const commonBookingFields = {
   rideId: z.string(),
   userId: z.string({ required_error: 'User must be logged in to book.'}),
   seats: z.preprocess((val) => JSON.parse(val as string), z.array(z.number()).min(1, 'Please select at least one seat.')),
@@ -21,26 +21,20 @@ const BookingFormSchema = z.object({
   passengerPhone: z.string().regex(/^\d{10}$/, 'Please enter a valid 10-digit phone number.'),
   paymentMethod: z.enum(['esewa', 'khalti', 'imepay']),
   userRole: z.enum(['user', 'admin']),
-  paymentScreenshot: z.any().optional(),
-  transactionId: z.string().optional(),
-}).superRefine((data, ctx) => {
-    if (data.userRole === 'admin') {
-        if (!data.transactionId || data.transactionId.trim() === '') {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                path: ['transactionId'],
-                message: 'Transaction ID is required for admin bookings.',
-            });
-        }
-    } else { // userRole is 'user'
-        if (!(data.paymentScreenshot instanceof File) || data.paymentScreenshot.size === 0) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                path: ['paymentScreenshot'],
-                message: 'Payment screenshot is required.',
-            });
-        }
-    }
+};
+
+const UserBookingFormSchema = z.object({
+    ...commonBookingFields,
+    paymentScreenshot: z
+        .instanceof(File, { message: 'Payment screenshot is required.' })
+        .refine((file) => file.size > 0, 'Payment screenshot cannot be empty.'),
+    transactionId: z.string().optional(),
+});
+
+const AdminBookingFormSchema = z.object({
+    ...commonBookingFields,
+    paymentScreenshot: z.any().optional(),
+    transactionId: z.string().min(1, 'Transaction ID is required for admin bookings.'),
 });
 
 
@@ -63,19 +57,12 @@ export type BookingState = {
 export async function processBooking(prevState: BookingState | null, formData: FormData): Promise<BookingState> {
   const userRole = formData.get('userRole');
 
-  const rawData = {
-    rideId: formData.get('rideId'),
-    userId: formData.get('userId'),
-    seats: formData.get('seats'),
-    passengerName: formData.get('passengerName'),
-    passengerPhone: formData.get('passengerPhone'),
-    paymentMethod: formData.get('paymentMethod'),
-    userRole: userRole,
-    paymentScreenshot: formData.get('paymentScreenshot'),
-    transactionId: formData.get('transactionId'),
-  };
-  
-  const validatedFields = BookingFormSchema.safeParse(rawData);
+  const rawData = Object.fromEntries(formData.entries());
+
+  const validatedFields = userRole === 'admin'
+    ? AdminBookingFormSchema.safeParse(rawData)
+    : UserBookingFormSchema.safeParse(rawData);
+
 
   if (!validatedFields.success) {
     return {
@@ -87,7 +74,6 @@ export async function processBooking(prevState: BookingState | null, formData: F
   
   const { rideId, seats, passengerName, passengerPhone, userId, paymentMethod } = validatedFields.data;
 
-  let bookingId: string;
   try {
      const bookingPayload: any = {
         rideId,
@@ -104,7 +90,7 @@ export async function processBooking(prevState: BookingState | null, formData: F
      }
 
     const createdBooking = await createBooking(bookingPayload);
-    bookingId = createdBooking.id;
+    const bookingId = createdBooking.id;
 
     if (validatedFields.data.userRole === 'user' && validatedFields.data.paymentScreenshot instanceof File) {
         const { paymentScreenshot } = validatedFields.data;
@@ -119,30 +105,29 @@ export async function processBooking(prevState: BookingState | null, formData: F
         await updateDoc(bookingRef, { paymentScreenshotUrl: downloadURL });
     }
     
-  } catch (error) {
+  } catch (error: any) {
     console.error("Booking Error:", error);
-    let errorMessage = "An unknown error occurred.";
-     if (error instanceof Error) {
-        // Check for specific Firebase Storage error codes
-        if ('code' in error && typeof error.code === 'string') {
-            switch (error.code) {
-                case 'storage/unauthorized':
-                    errorMessage = "You do not have permission to upload files. Please ensure you are logged in and check Firebase Storage rules.";
-                    break;
-                case 'storage/object-not-found':
-                     errorMessage = "The file path could not be found. Please contact support.";
-                    break;
-                default:
-                    errorMessage = `Firebase Storage Error: ${error.message} (${error.code})`;
-            }
-        } else {
-             errorMessage = error.message;
+    let errorMessage = "An unknown error occurred during booking.";
+    
+    // Specifically check for Firebase Storage errors, which are common.
+    if (error.code && typeof error.code === 'string' && error.code.startsWith('storage/')) {
+        switch (error.code) {
+            case 'storage/unauthorized':
+                errorMessage = "Permission denied. Please ensure you are logged in and that Firebase Storage security rules allow uploads for authenticated users.";
+                break;
+            case 'storage/unknown':
+                 errorMessage = "An unknown storage error occurred. This is often due to permission issues. Please check your Firebase Storage security rules.";
+                 break;
+            default:
+                errorMessage = `File upload failed: ${error.message} (${error.code})`;
         }
+    } else if (error instanceof Error) {
+        errorMessage = error.message;
     }
 
     return {
       errors: { server: [errorMessage] },
-      message: 'Booking failed due to a server error.',
+      message: `Booking failed: ${errorMessage}`,
       success: false,
     };
   }
@@ -427,5 +412,3 @@ export async function changeUserPassword(prevState: any, formData: FormData): Pr
         return { success: false, message: message };
     }
 }
-
-    
