@@ -38,9 +38,10 @@ export type BookingState = {
     server?: string[];
   };
   message?: string | null;
-} | null;
+  success?: boolean;
+};
 
-export async function processBooking(prevState: BookingState, formData: FormData): Promise<BookingState> {
+export async function processBooking(prevState: BookingState | null, formData: FormData): Promise<BookingState> {
   const validatedFields = BookingFormSchema.safeParse({
     rideId: formData.get('rideId'),
     userId: formData.get('userId'),
@@ -52,10 +53,10 @@ export async function processBooking(prevState: BookingState, formData: FormData
   });
 
   if (!validatedFields.success) {
-    console.log(validatedFields.error.flatten().fieldErrors);
     return {
       errors: validatedFields.error.flatten().fieldErrors,
       message: 'Booking failed. Please check the form for errors.',
+      success: false,
     };
   }
   
@@ -94,13 +95,14 @@ export async function processBooking(prevState: BookingState, formData: FormData
     return {
       errors: { server: [errorMessage] },
       message: 'Booking failed due to a server error.',
+      success: false,
     };
   }
 
   // Revalidate the booking page to show updated seat status
   revalidatePath(`/booking/${rideId}`);
   // Don't redirect here, let the client-side handle it after showing a toast.
-  return { message: `Booking successful! Your request for seat(s) ${seats.join(', ')} is pending confirmation.` };
+  return { message: `Booking successful! Your request for seat(s) ${seats.join(', ')} is pending confirmation.`, success: true };
 }
 
 

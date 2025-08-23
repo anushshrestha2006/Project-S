@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useActionState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Ride, User, Seat as SeatType, PaymentDetails } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Armchair, User as UserIcon } from 'lucide-react';
@@ -10,8 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { processBooking, type BookingState } from '@/lib/actions';
-import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { PaymentDialog } from './PaymentDialog';
 import { getPaymentDetails } from '@/lib/data';
