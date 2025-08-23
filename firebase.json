@@ -1,6 +1,7 @@
+
 {
   "hosting": {
-    "public": "dist",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -9,8 +10,8 @@
     "rewrites": [
       {
         "source": "**",
-        "apphosting": {
-          "backendId": "sumo-sewa-9z1gw",
+        "run": {
+          "serviceId": "sumo-sewa-9z1gw",
           "region": "us-central1"
         }
       }
