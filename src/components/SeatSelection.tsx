@@ -125,13 +125,14 @@ export function SeatSelection({ ride }: { ride: Ride }) {
     const errors: Record<number, {name?: string, phone?: string}> = {};
     let hasErrors = false;
     
-    passengers.forEach(p => {
+    passengers.forEach((p, index) => {
         const passengerErrors: {name?: string, phone?: string} = {};
         if (!p.name || p.name.length < 2) {
             passengerErrors.name = 'Name must be at least 2 characters.';
             hasErrors = true;
         }
-        if (!p.phone || !/^\d{10}$/.test(p.phone)) {
+        // Phone number is required for the first passenger, optional for others
+        if (index === 0 && (!p.phone || !/^\d{10}$/.test(p.phone))) {
             passengerErrors.phone = 'Enter a valid 10-digit phone number.';
             hasErrors = true;
         }
@@ -284,14 +285,14 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                                         {formErrors[passenger.seatNumber]?.name && <p className="text-xs text-destructive">{formErrors[passenger.seatNumber]?.name}</p>}
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor={`passengerPhone-${passenger.seatNumber}`}>Phone Number</Label>
+                                        <Label htmlFor={`passengerPhone-${passenger.seatNumber}`}>Phone Number {index > 0 && '(Optional)'}</Label>
                                         <Input 
                                             id={`passengerPhone-${passenger.seatNumber}`} 
                                             name={`passengerPhone-${passenger.seatNumber}`}
                                             placeholder="98XXXXXXXX" 
                                             value={passenger.phone} 
                                             onChange={e => handlePassengerDetailChange(passenger.seatNumber, 'phone', e.target.value)} 
-                                            required 
+                                            required={index === 0}
                                         />
                                         {formErrors[passenger.seatNumber]?.phone && <p className="text-xs text-destructive">{formErrors[passenger.seatNumber]?.phone}</p>}
                                     </div>
@@ -351,5 +352,7 @@ export function SeatSelection({ ride }: { ride: Ride }) {
     </>
   );
 }
+
+    
 
     
