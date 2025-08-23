@@ -27,15 +27,13 @@ const UserBookingSchema = BookingBaseSchema.extend({
     userRole: z.literal('user'),
     paymentScreenshot: z
         .instanceof(File, { message: "Payment screenshot is required." })
-        .refine((file) => file.size > 0, "Payment screenshot is required.")
-        .refine((file) => file.size < 4 * 1024 * 1024, "Image must be less than 4MB.")
-        .refine((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type), "Only .jpg, .png, and .webp formats are supported."),
+        .refine((file) => file.size > 0, "Payment screenshot is required."),
+    transactionId: z.string().optional(),
 });
 
 const AdminBookingSchema = BookingBaseSchema.extend({
     userRole: z.literal('admin'),
     transactionId: z.string().min(1, "Transaction ID is required for admin bookings."),
-    // We add this but make it optional so the schema doesn't complain. It will be empty for admins.
     paymentScreenshot: z.instanceof(File).optional(),
 });
 
