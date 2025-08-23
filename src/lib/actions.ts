@@ -30,13 +30,11 @@ const UserBookingSchema = BookingBaseSchema.extend({
         .refine((file) => file.size > 0, "Payment screenshot is required.")
         .refine((file) => file.size < 4 * 1024 * 1024, "Image must be less than 4MB.")
         .refine((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type), "Only .jpg, .png, and .webp formats are supported."),
-    transactionId: z.string().optional(),
 });
 
 const AdminBookingSchema = BookingBaseSchema.extend({
     userRole: z.literal('admin'),
     transactionId: z.string().min(1, "Transaction ID is required for admin bookings."),
-    paymentScreenshot: z.instanceof(File).optional(),
 });
 
 const BookingFormSchema = z.discriminatedUnion("userRole", [UserBookingSchema, AdminBookingSchema]);
@@ -59,17 +57,22 @@ export type BookingState = {
 };
 
 export async function processBooking(prevState: BookingState | null, formData: FormData): Promise<BookingState> {
-  const validatedFields = BookingFormSchema.safeParse({
+  const userRole = formData.get('userRole');
+
+  const rawData = {
     rideId: formData.get('rideId'),
     userId: formData.get('userId'),
     seats: formData.get('seats'),
     passengerName: formData.get('passengerName'),
     passengerPhone: formData.get('passengerPhone'),
     paymentMethod: formData.get('paymentMethod'),
-    userRole: formData.get('userRole'),
-    paymentScreenshot: formData.get('paymentScreenshot'),
-    transactionId: formData.get('transactionId'),
-  });
+    userRole: userRole,
+    // Conditionally include fields based on role
+    ...(userRole === 'user' && { paymentScreenshot: formData.get('paymentScreenshot') }),
+    ...(userRole === 'admin' && { transactionId: formData.get('transactionId') }),
+  };
+  
+  const validatedFields = BookingFormSchema.safeParse(rawData);
 
   if (!validatedFields.success) {
     return {
@@ -79,7 +82,7 @@ export async function processBooking(prevState: BookingState | null, formData: F
     };
   }
   
-  const { rideId, seats, passengerName, passengerPhone, userId, paymentMethod, userRole } = validatedFields.data;
+  const { rideId, seats, passengerName, passengerPhone, userId, paymentMethod } = validatedFields.data;
 
   let bookingId: string;
   try {
@@ -90,17 +93,17 @@ export async function processBooking(prevState: BookingState | null, formData: F
         passengerPhone,
         userId,
         paymentMethod,
-        status: userRole === 'admin' ? 'confirmed' : 'pending-payment',
+        status: validatedFields.data.userRole === 'admin' ? 'confirmed' : 'pending-payment',
      };
 
-     if(userRole === 'admin') {
+     if(validatedFields.data.userRole === 'admin') {
          bookingPayload.transactionId = validatedFields.data.transactionId;
      }
 
     const createdBooking = await createBooking(bookingPayload);
     bookingId = createdBooking.id;
 
-    if (userRole === 'user') {
+    if (validatedFields.data.userRole === 'user') {
         const { paymentScreenshot } = validatedFields.data;
         const storagePath = `payment_screenshots/${bookingId}.${paymentScreenshot.type.split('/')[1]}`;
         const storageRef = ref(storage, storagePath);
