@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus, Eye, Clock, Loader2 } from "lucide-react";
+import { Download, Search, ExternalLink, CheckCircle, XCircle, CalendarIcon, ArrowRight, Ticket, Bus, Eye, Clock, Loader2, Link as LinkIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format, isSameDay } from "date-fns";
 import { auth } from "@/lib/firebase";
@@ -167,7 +167,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     }
 
     const handleExport = () => {
-        const headers = ["Ticket ID", "Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Transaction ID", "Ride From", "Ride To", "Ride Date", "Departure Time", "Vehicle Type"];
+        const headers = ["Ticket ID", "Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Screenshot URL", "Ride From", "Ride To", "Ride Date", "Departure Time", "Vehicle Type"];
         const csvRows = [headers.join(",")];
         
         filteredBookings.forEach(booking => {
@@ -183,7 +183,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 format(bookingTime, "yyyy-MM-dd HH:mm"),
                 booking.status,
                 booking.paymentMethod || "",
-                booking.transactionId || "",
+                booking.paymentScreenshotUrl || "",
                 booking.rideDetails.from,
                 booking.rideDetails.to,
                 booking.rideDetails.date,
@@ -301,19 +301,6 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                         </SelectContent>
                     </Select>
                 </div>
-                 <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="timeFilter">Filter by Time</Label>
-                    <Select value={timeFilter} onValueChange={setTimeFilter}>
-                        <SelectTrigger id="timeFilter">
-                            <SelectValue placeholder="Select time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Times</SelectItem>
-                            <SelectItem value="06:00 AM">06:00 AM</SelectItem>
-                            <SelectItem value="10:00 AM">10:00 AM</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
                  <div className="grid grid-cols-2 w-full items-center gap-2 lg:col-start-4 lg:col-span-2">
                      <Button onClick={handleExport} variant="outline">
                         <Download className="mr-2 h-4 w-4" />
@@ -364,7 +351,13 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                     </TableCell>
                                      <TableCell>
                                         <div className="font-medium capitalize">{booking.paymentMethod}</div>
-                                        <div className="text-xs text-muted-foreground">{booking.transactionId || 'N/A'}</div>
+                                        {booking.paymentScreenshotUrl ? (
+                                            <a href={booking.paymentScreenshotUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                                               <LinkIcon className="h-3 w-3" /> View Screenshot
+                                            </a>
+                                        ) : (
+                                            <div className="text-xs text-muted-foreground">No screenshot</div>
+                                        )}
                                     </TableCell>
                                      <TableCell>
                                         <Badge variant={getStatusBadgeVariant(booking.status)}>

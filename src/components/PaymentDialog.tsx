@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import type { PaymentDetails, PaymentMethod } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
+import { UploadCloud, Image as ImageIcon } from 'lucide-react';
 
 interface PaymentDialogProps {
   isOpen: boolean;
@@ -65,6 +66,7 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails, paymentDetail
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [activeTab, setActiveTab] = useState<PaymentMethod>('esewa');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   const initialState: BookingState = { message: null, errors: {} };
   const [state, dispatch] = useActionState(processBooking, initialState);
@@ -92,13 +94,26 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails, paymentDetail
     }
   }, [state, isOpen, setIsOpen, router, toast]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPreviewUrl(null);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Complete Your Payment</DialogTitle>
           <DialogDescription>
-            Scan the QR code to pay NPR {bookingDetails.totalPrice.toLocaleString()}. Then, provide your transaction details.
+            Scan the QR to pay NPR {bookingDetails.totalPrice.toLocaleString()}. Then, upload a screenshot of the payment confirmation.
           </DialogDescription>
         </DialogHeader>
         <form ref={formRef} action={dispatch}>
@@ -127,10 +142,16 @@ export function PaymentDialog({ isOpen, setIsOpen, bookingDetails, paymentDetail
             </Tabs>
             
             <div className="grid w-full items-center gap-1.5 mt-4">
-                <Label htmlFor="transactionId">Transaction ID</Label>
-                <Input type="text" id="transactionId" name="transactionId" placeholder="e.g., 1234ABC" required />
-                 {state?.errors?.transactionId && <p className="text-xs text-destructive">{state.errors.transactionId[0]}</p>}
+                <Label htmlFor="paymentScreenshot">Payment Screenshot</Label>
+                <Input type="file" id="paymentScreenshot" name="paymentScreenshot" required accept="image/png, image/jpeg, image/webp" onChange={handleFileChange} />
+                 {state?.errors?.paymentScreenshot && <p className="text-xs text-destructive">{state.errors.paymentScreenshot[0]}</p>}
             </div>
+             {previewUrl && (
+                <div className="mt-2 flex flex-col items-center gap-2">
+                    <p className="font-semibold text-muted-foreground text-sm">Screenshot Preview</p>
+                    <Image src={previewUrl} alt="Payment screenshot preview" width={100} height={100} className="object-contain rounded-md border p-1" />
+                </div>
+            )}
             
              <DialogFooter className="mt-6">
                 <DialogClose asChild>

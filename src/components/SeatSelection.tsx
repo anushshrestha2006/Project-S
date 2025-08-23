@@ -4,7 +4,7 @@
 import { useState, useEffect, useActionState } from 'react';
 import type { Ride, User, Seat as SeatType, PaymentDetails } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Armchair } from 'lucide-react';
+import { Armchair, User as UserIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -247,6 +247,10 @@ export function SeatSelection({ ride }: { ride: Ride }) {
                         </div>
 
                         <div className="border-t pt-4 space-y-3">
+                             <div className="flex justify-between font-medium">
+                                <span className="text-muted-foreground flex items-center gap-1"><UserIcon className="w-4 h-4" /> x {selectedSeats.length} Seat(s)</span>
+                                <strong>NPR {ride.price.toLocaleString()} / seat</strong>
+                            </div>
                             <div className="flex justify-between font-medium">
                                 <span className="text-muted-foreground">Selected Seats:</span>
                                 <strong>{selectedSeats.join(', ') || 'None'}</strong>

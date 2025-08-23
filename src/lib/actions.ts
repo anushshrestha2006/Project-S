@@ -19,7 +19,11 @@ const BookingFormSchema = z.object({
   passengerName: z.string().min(2, 'Passenger name must be at least 2 characters.'),
   passengerPhone: z.string().regex(/^\d{10}$/, 'Please enter a valid 10-digit phone number.'),
   paymentMethod: z.enum(['esewa', 'khalti', 'imepay']),
-  transactionId: z.string().optional(),
+  paymentScreenshot: z
+    .instanceof(File)
+    .refine((file) => file.size > 0, "Payment screenshot is required.")
+    .refine((file) => file.size < 4 * 1024 * 1024, "Image must be less than 4MB.")
+    .refine((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type), "Only .jpg, .png, and .webp formats are supported."),
 });
 
 export type BookingState = {
@@ -30,7 +34,6 @@ export type BookingState = {
     passengerName?: string[];
     passengerPhone?: string[];
     paymentMethod?: string[];
-    transactionId?: string[];
     paymentScreenshot?: string[];
     server?: string[];
   };
@@ -45,7 +48,7 @@ export async function processBooking(prevState: BookingState, formData: FormData
     passengerName: formData.get('passengerName'),
     passengerPhone: formData.get('passengerPhone'),
     paymentMethod: formData.get('paymentMethod'),
-    transactionId: formData.get('transactionId'),
+    paymentScreenshot: formData.get('paymentScreenshot'),
   });
 
   if (!validatedFields.success) {
@@ -56,12 +59,12 @@ export async function processBooking(prevState: BookingState, formData: FormData
     };
   }
   
-  const { rideId, seats, passengerName, passengerPhone, userId, paymentMethod, transactionId } = validatedFields.data;
+  const { rideId, seats, passengerName, passengerPhone, userId, paymentMethod, paymentScreenshot } = validatedFields.data;
 
-
+  let bookingId: string;
   try {
-    // Create the booking in Firestore
-    await createBooking({
+     // First, create the booking record without the screenshot URL
+    const createdBooking = await createBooking({
       rideId,
       seats,
       passengerName,
@@ -69,8 +72,20 @@ export async function processBooking(prevState: BookingState, formData: FormData
       userId,
       status: 'pending-payment',
       paymentMethod,
-      transactionId,
     });
+    bookingId = createdBooking.id;
+
+    // Now, upload the screenshot
+    const storagePath = `payment_screenshots/${bookingId}.${paymentScreenshot.type.split('/')[1]}`;
+    const storageRef = ref(storage, storagePath);
+
+    const arrayBuffer = await paymentScreenshot.arrayBuffer();
+    await uploadBytes(storageRef, arrayBuffer, { contentType: paymentScreenshot.type });
+    const downloadURL = await getDownloadURL(storageRef);
+
+    // Finally, update the booking record with the screenshot URL
+    const bookingRef = doc(db, 'bookings', bookingId);
+    await updateDoc(bookingRef, { paymentScreenshotUrl: downloadURL });
     
   } catch (error) {
     console.error("Booking Error:", error);
