@@ -26,7 +26,7 @@ const BookingBaseSchema = z.object({
 const UserBookingSchema = BookingBaseSchema.extend({
     userRole: z.literal('user'),
     paymentScreenshot: z
-        .instanceof(File)
+        .instanceof(File, { message: "Payment screenshot is required." })
         .refine((file) => file.size > 0, "Payment screenshot is required.")
         .refine((file) => file.size < 4 * 1024 * 1024, "Image must be less than 4MB.")
         .refine((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type), "Only .jpg, .png, and .webp formats are supported."),
