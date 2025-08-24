@@ -1,13 +1,9 @@
-
 {
   "hosting": {
     "rewrites": [
       {
         "source": "**",
-        "run": {
-          "serviceId": "sumo-sewa-9z1gw",
-          "region": "us-central1"
-        }
+        "app": "sumo-sewa-9z1gw"
       }
     ]
   }

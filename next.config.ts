@@ -1,8 +1,9 @@
-
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // 👇 This enables static HTML export (needed for Firebase Hosting)
+  output: "export",
+
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -16,7 +17,7 @@ const nextConfig: NextConfig = {
         hostname: 'placehold.co',
         port: '',
         pathname: '/**',
-      }
+      },
     ],
   },
 };
