@@ -5,12 +5,12 @@ import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where,
 import type { Ride, Booking, User, Seat, SeatStatus, PaymentDetails, FooterSettings, RideTemplate } from './types';
 import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
-const initialSeatsSumo: Seat[] = Array.from({ length: 9 }, (_, i) => ({
+export const initialSeatsSumo: Seat[] = Array.from({ length: 9 }, (_, i) => ({
     number: i + 1,
     status: 'available',
 }));
 
-const initialSeatsEV: Seat[] = Array.from({ length: 10 }, (_, i) => ({
+export const initialSeatsEV: Seat[] = Array.from({ length: 10 }, (_, i) => ({
     number: i + 1,
     status: 'available',
 }));
@@ -46,37 +46,6 @@ export const getRideTemplates = async (): Promise<RideTemplate[]> => {
 };
 
 
-/**
- * Generates a list of all rides for the next 7 days based on templates from Firestore.
- */
-const generateRides = async (): Promise<Ride[]> => {
-    const rides: Ride[] = [];
-    const today = new Date();
-    const templates = await getRideTemplates();
-
-    for (let i = 0; i < 7; i++) {
-        const date = addDays(today, i);
-        const dateStr = format(date, 'yyyy-MM-dd');
-        templates.forEach((template) => {
-            rides.push({
-                id: `${dateStr}-${template.id}`,
-                from: template.from,
-                to: template.to,
-                departureTime: template.departureTime,
-                arrivalTime: template.arrivalTime,
-                price: template.price,
-                vehicleType: template.vehicleType,
-                vehicleNumber: template.vehicleNumber,
-                date: dateStr,
-                seats: JSON.parse(JSON.stringify(template.initialSeats)),
-                totalSeats: template.totalSeats,
-            });
-        });
-    }
-    return rides;
-}
-
-
 // Helper to get current time in Nepal (UTC+5:45)
 const getNepalTime = () => {
     const now = new Date();
@@ -87,73 +56,97 @@ const getNepalTime = () => {
 };
 
 
+export async function getRidesForDate(date: string): Promise<Ride[]> {
+    const ridesSnapshot = await getDocs(query(collection(db, 'rides'), where('date', '==', date)));
+    return ridesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ride));
+}
+
+
+export async function generateRidesForDate(date: string): Promise<Ride[]> {
+    const templates = await getRideTemplates();
+    const batch = writeBatch(db);
+
+    const generatedRides = templates.map(template => {
+        const rideId = `${date}-${template.id}`;
+        const newRide: Ride = {
+            id: rideId,
+            from: template.from,
+            to: template.to,
+            departureTime: template.departureTime,
+            arrivalTime: template.arrivalTime,
+            price: template.price,
+            vehicleType: template.vehicleType,
+            vehicleNumber: template.vehicleNumber,
+            date: date,
+            seats: JSON.parse(JSON.stringify(template.initialSeats)),
+            totalSeats: template.totalSeats,
+        };
+        const rideRef = doc(db, 'rides', rideId);
+        batch.set(rideRef, newRide);
+        return newRide;
+    });
+
+    await batch.commit();
+    return generatedRides;
+}
+
+
 export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
     
-    let allRides: Ride[] = await generateRides();
-    const rideIds = allRides.map(r => r.id);
+    let ridesQuery = query(collection(db, 'rides'));
 
-    const firestoreRides = new Map<string, Ride>();
-    const CHUNK_SIZE = 30; // Firestore 'in' query limit
-
-    for (let i = 0; i < rideIds.length; i += CHUNK_SIZE) {
-        const chunk = rideIds.slice(i, i + CHUNK_SIZE);
-        if (chunk.length > 0) {
-            const ridesSnapshot = await getDocs(query(collection(db, 'rides'), where('__name__', 'in', chunk)));
-            ridesSnapshot.docs.forEach(doc => {
-                firestoreRides.set(doc.id, doc.data() as Ride);
-            });
-        }
-    }
-
-    allRides = allRides.map(ride => {
-        const firestoreRide = firestoreRides.get(ride.id);
-        return firestoreRide ? { ...ride, seats: firestoreRide.seats } : ride;
-    });
-
-    
-    if (filters.from && filters.from !== 'all') {
-        allRides = allRides.filter(ride => ride.from === filters.from);
-    }
-    if (filters.to && filters.to !== 'all') {
-        allRides = allRides.filter(ride => ride.to === filters.to);
-    }
-    
     const now = getNepalTime();
     const todayStr = format(now, 'yyyy-MM-dd');
-    const tomorrowStr = format(addDays(now, 1), 'yyyy-MM-dd');
+    let targetDate = filters.date || todayStr;
 
-    let finalRideList;
-
-    if (filters.date) {
-        finalRideList = allRides.filter(ride => ride.date === filters.date);
-    } else {
-        const todayRides = allRides.filter(ride => ride.date === todayStr);
-        const availableTodayRides = todayRides.filter(ride => {
-            const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
-            return departureDateTime > now;
-        });
-
+    // Default logic: if no date is selected, check for available rides today. If none, show tomorrow's.
+    if (!filters.date) {
+        const todayRidesSnapshot = await getDocs(query(collection(db, 'rides'), where('date', '==', todayStr)));
+        const availableTodayRides = todayRidesSnapshot.docs
+            .map(doc => doc.data() as Ride)
+            .filter(ride => {
+                const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
+                return departureDateTime > now;
+            });
+        
         if (availableTodayRides.length > 0) {
-            finalRideList = availableTodayRides;
+            targetDate = todayStr;
         } else {
-            finalRideList = allRides.filter(ride => ride.date === tomorrowStr);
+            targetDate = format(addDays(now, 1), 'yyyy-MM-dd');
         }
     }
+    
+    // Always filter by a specific date
+    ridesQuery = query(ridesQuery, where('date', '==', targetDate));
+    
+    if (filters.from && filters.from !== 'all') {
+        ridesQuery = query(ridesQuery, where('from', '==', filters.from));
+    }
+    if (filters.to && filters.to !== 'all') {
+        ridesQuery = query(ridesQuery, where('to', '==', filters.to));
+    }
+    
+    const ridesSnapshot = await getDocs(ridesQuery);
 
+    let finalRideList = ridesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ride));
+
+    // Filter out rides that have already departed
     finalRideList = finalRideList.filter(ride => {
         const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
         return departureDateTime > now;
     });
-
+    
+    // If after all filtering for a future date, there are no rides, generate them.
+    if (finalRideList.length === 0 && !isPast(parseISO(targetDate))) {
+        await generateRidesForDate(targetDate);
+        // Re-fetch after generation
+        const newSnapshot = await getDocs(ridesQuery);
+        finalRideList = newSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ride));
+    }
 
     finalRideList.sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        if (dateA !== dateB) {
-            return dateA - dateB;
-        }
         const timeA = parse(a.departureTime, 'hh:mm a', new Date()).getTime();
         const timeB = parse(b.departureTime, 'hh:mm a', new Date()).getTime();
         return timeA - timeB;
@@ -162,38 +155,25 @@ export const getRides = async (
     return finalRideList;
 };
 
+
 export const getRideById = async (id: string, includePast = false): Promise<Ride | undefined> => {
     const rideRef = doc(db, 'rides', id);
     const rideSnap = await getDoc(rideRef);
     
-    const allRides = await generateRides();
-    const templateRide = allRides.find(r => r.id === id);
-    if (!templateRide) return undefined;
-
-    if (rideSnap.exists()) {
-        const ride = rideSnap.data() as Ride;
-        
-        const mergedRide = { ...templateRide, ...ride };
-        
-        if (!includePast) {
-            const now = getNepalTime();
-            const departureDateTime = parse(`${mergedRide.date} ${mergedRide.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
-            if (isPast(departureDateTime)) {
-                return undefined;
-            }
-        }
-        return { id: rideSnap.id, ...mergedRide };
-
-    } else {
-        if (!includePast) {
-            const now = getNepalTime();
-            const departureDateTime = parse(`${templateRide.date} ${templateRide.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
-            if (isPast(departureDateTime)) {
-                return undefined;
-            }
-        }
-        return templateRide;
+    if (!rideSnap.exists()) {
+        return undefined;
     }
+    
+    const ride = { id: rideSnap.id, ...rideSnap.data() } as Ride;
+    
+    if (!includePast) {
+        const now = getNepalTime();
+        const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
+        if (isPast(departureDateTime)) {
+            return undefined;
+        }
+    }
+    return ride;
 };
 
 export const getBookings = async (): Promise<Booking[]> => {
@@ -280,19 +260,12 @@ export const createBooking = async (
 
     await runTransaction(db, async (transaction) => {
         const rideDoc = await transaction.get(rideRef);
-        let ride: Ride;
-
-        const generatedRides = await generateRides();
-        const generatedRide = generatedRides.find(r => r.id === bookingData.rideId);
-        if (!generatedRide) {
-            throw new Error("Ride schedule not found!");
-        }
 
         if (!rideDoc.exists()) {
-            ride = generatedRide;
-        } else {
-            ride = { ...generatedRide, ...rideDoc.data() } as Ride;
+            throw new Error("Ride does not exist.");
         }
+        
+        const ride = rideDoc.data() as Ride;
 
         bookingData.seats.forEach(seatNumber => {
             const seat = ride.seats.find(s => s.number === seatNumber);
@@ -307,7 +280,7 @@ export const createBooking = async (
                 : seat
         );
         
-        transaction.set(rideRef, { seats: newSeats }, { merge: true });
+        transaction.update(rideRef, { seats: newSeats });
         
         const newBookingRef = doc(collection(db, 'bookings'));
         newBookingId = newBookingRef.id;
@@ -345,23 +318,18 @@ export const updateRideSeats = async (rideId: string, seatNumbers: number[], new
      const rideRef = doc(db, 'rides', rideId);
       await runTransaction(db, async (transaction) => {
         const rideDoc = await transaction.get(rideRef);
-         let ride: Ride;
-
-        const generatedRides = await generateRides();
-        const generatedRide = generatedRides.find(r => r.id === rideId);
-        if (!generatedRide) throw new Error("Ride not found for seat update");
-
+        
         if (!rideDoc.exists()) {
-            ride = generatedRide;
-        } else {
-            ride = { ...generatedRide, ...rideDoc.data() } as Ride;
+            throw new Error("Ride not found for seat update");
         }
+
+        const ride = rideDoc.data() as Ride;
 
         const newSeats = ride.seats.map(seat => 
             seatNumbers.includes(seat.number) ? { ...seat, status: newStatus } : seat
         );
         
-        transaction.set(rideRef, { seats: newSeats }, { merge: true });
+        transaction.update(rideRef, { seats: newSeats });
     });
 }
 
@@ -456,4 +424,39 @@ export async function updateUserProfileInDb(userId: string, data: Partial<Pick<U
 export async function updateRideTemplateInDb(templateId: string, data: Partial<Pick<RideTemplate, 'vehicleNumber' | 'departureTime' | 'arrivalTime'>>): Promise<void> {
     const templateRef = doc(db, 'rideTemplates', templateId);
     await updateDoc(templateRef, data);
+}
+
+
+export async function createOrUpdateRideInDb(rideData: Omit<Ride, 'id' | 'seats'> & { rideId?: string, seats?: string }): Promise<Ride> {
+    const { rideId, seats: seatsJson, ...dataToSave } = rideData;
+    const isEditing = !!rideId;
+
+    let finalSeats: Seat[];
+    if (isEditing && seatsJson) {
+        // If editing, preserve existing seat status
+        finalSeats = JSON.parse(seatsJson);
+    } else {
+        // If creating, use initial seats based on vehicle type
+        finalSeats = dataToSave.vehicleType === 'Sumo' ? initialSeatsSumo : initialSeatsEV;
+    }
+
+    const rideDoc: Omit<Ride, 'id'> = {
+        ...dataToSave,
+        seats: finalSeats,
+    };
+
+    if (isEditing) {
+        const rideRef = doc(db, 'rides', rideId!);
+        await updateDoc(rideRef, rideDoc);
+        return { id: rideId!, ...rideDoc };
+    } else {
+        const newRideRef = doc(collection(db, 'rides'));
+        await setDoc(newRideRef, rideDoc);
+        return { id: newRideRef.id, ...rideDoc };
+    }
+}
+
+export async function deleteRideFromDb(rideId: string): Promise<void> {
+    const rideRef = doc(db, 'rides', rideId);
+    await deleteDoc(rideRef);
 }

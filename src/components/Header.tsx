@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket, Users, Settings, Wrench, Home, BusFront } from 'lucide-react';
+import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket, Users, Settings, Wrench, Home, BusFront, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { User } from '@/lib/types';
 import {
@@ -116,20 +116,30 @@ export default function Header() {
                     </Link>
                   {user.role === 'admin' && (
                     <>
+                     <DropdownMenuSeparator />
+                     <DropdownMenuLabel>Admin Panel</DropdownMenuLabel>
                      <Link href="/admin">
                         <DropdownMenuItem>
                             <LayoutDashboard className="mr-2 h-4 w-4" />
-                            Booking Panel
+                            Booking Dashboard
+                        </DropdownMenuItem>
+                      </Link>
+                      <Link href="/admin/schedule">
+                        <DropdownMenuItem>
+                            <CalendarDays className="mr-2 h-4 w-4" />
+                            Daily Schedule
                         </DropdownMenuItem>
                       </Link>
                        <Link href="/admin/rides">
                         <DropdownMenuItem>
                             <BusFront className="mr-2 h-4 w-4" />
-                            Ride Management
+                            Ride Templates
                         </DropdownMenuItem>
                       </Link>
                        {user.email === 'anushshrestha8683@gmail.com' && (
                           <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>Super Admin</DropdownMenuLabel>
                             <Link href="/admin/users">
                               <DropdownMenuItem>
                                   <Users className="mr-2 h-4 w-4" />

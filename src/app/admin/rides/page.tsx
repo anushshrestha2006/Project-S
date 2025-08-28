@@ -1,4 +1,5 @@
 
+
 import { getRideTemplates } from "@/lib/data";
 import { RideTemplateTable } from "@/components/admin/RideTemplateTable";
 import {
@@ -39,15 +40,15 @@ export default function RideManagementPage() {
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Ride Management</h1>
-                <p className="text-muted-foreground">Manage the ride templates used to generate daily schedules.</p>
+                <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Ride Template Management</h1>
+                <p className="text-muted-foreground">Manage the base templates used to automatically generate daily schedules.</p>
             </div>
 
             <Card>
                 <CardHeader>
                     <CardTitle>Ride Templates</CardTitle>
                     <CardDescription>
-                        Edit the vehicle number and timings for each ride template. Changes will be reflected in newly generated daily rides.
+                        Edit the vehicle number and timings for each ride template. These are the master copies for daily ride generation.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
