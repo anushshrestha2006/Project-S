@@ -53,11 +53,7 @@ const getNepalTime = () => {
 };
 
 export default function SchedulePage() {
-    const [date, setDate] = useState<Date>(() => {
-        // This logic will only run on the client, preventing hydration mismatch
-        const now = getNepalTime();
-        return now;
-    });
+    const [date, setDate] = useState<Date>(getNepalTime());
     const [rides, setRides] = useState<Ride[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
@@ -96,28 +92,6 @@ export default function SchedulePage() {
                 
                 if (result.success && result.rides) {
                      setRides(result.rides);
-                     
-                    // Logic to determine default view date
-                    const now = getNepalTime();
-                    const todayStr = format(now, 'yyyy-MM-dd');
-                    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-                    
-                    if (selectedDateStr === todayStr) {
-                         const availableTodayRides = result.rides.filter(ride => {
-                            const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
-                            return !isPast(departureDateTime);
-                        });
-
-                        // If no rides are left for today, and no specific date was chosen, jump to tomorrow
-                        if (availableTodayRides.length === 0 && result.rides.length > 0) {
-                            // Check if a specific date was selected by the user to avoid overriding it
-                            const urlParams = new URLSearchParams(window.location.search);
-                            if (!urlParams.has('date')) {
-                                setDate(addDays(new Date(), 1));
-                                return;
-                            }
-                        }
-                    }
                 } else {
                     setError(result.message ?? 'An unknown error occurred.');
                     setRides([]);
@@ -126,36 +100,7 @@ export default function SchedulePage() {
             });
         };
         
-        // Initial fetch and logic to potentially switch to tomorrow
-        const initialFetch = async () => {
-             const now = getNepalTime();
-             const todayStr = format(now, 'yyyy-MM-dd');
-             const todayResult = await getRidesForDateAction(todayStr);
-
-            if (todayResult.success && todayResult.rides) {
-                 const availableTodayRides = todayResult.rides.filter(ride => {
-                    const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
-                    return !isPast(departureDateTime);
-                });
-                if (availableTodayRides.length === 0) {
-                    setDate(addDays(now, 1));
-                } else {
-                     fetchRidesForDate(date);
-                }
-            } else {
-                 fetchRidesForDate(date);
-            }
-        }
-        
-        if (currentUser) {
-            // Only run the smart default date logic once on load
-            if (format(date, 'yyyy-MM-dd') === format(getNepalTime(), 'yyyy-MM-dd')) {
-                initialFetch();
-            } else {
-                fetchRidesForDate(date);
-            }
-        }
-
+        fetchRidesForDate(date);
     }, [date, currentUser]);
 
     const handleDateChange = (newDate: Date | undefined) => {
@@ -221,7 +166,7 @@ export default function SchedulePage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {isLoading || isPending ? (
+                    {isPending ? (
                         <ScheduleSkeleton />
                     ) : error ? (
                          <div className="text-center py-10 text-destructive bg-red-50 border border-destructive rounded-lg">
