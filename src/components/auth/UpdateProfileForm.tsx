@@ -38,29 +38,36 @@ function SubmitButton() {
     )
 }
 
-export function UpdateProfileForm({ currentUser }: { currentUser: User }) {
-    const initialState = { success: false, message: '', errors: {} };
+interface UpdateProfileFormProps {
+  currentUser: User;
+  onProfileUpdate: (updatedUser: Partial<User>) => void;
+}
+
+
+export function UpdateProfileForm({ currentUser, onProfileUpdate }: UpdateProfileFormProps) {
+    const initialState = { success: false, message: '', errors: {}, user: null };
     const [state, formAction] = useActionState(updateUserProfile, initialState);
     const { toast } = useToast();
     const formRef = useRef<HTMLFormElement>(null);
     const [date, setDate] = useState<Date | undefined>(currentUser.dob ? parseISO(currentUser.dob) : undefined);
 
     useEffect(() => {
-        if (!state.message) return;
+        if (!state) return;
 
-        if (state.success) {
+        if (state.success && state.user) {
             toast({
                 title: 'Success!',
                 description: state.message,
             });
-        } else {
+            onProfileUpdate(state.user);
+        } else if (!state.success && state.message) {
              toast({
                 variant: 'destructive',
                 title: 'Update Failed',
                 description: state.message || "Please check the form for errors.",
             });
         }
-    }, [state, toast]);
+    }, [state, toast, onProfileUpdate]);
 
     return (
         <form ref={formRef} action={formAction} className="space-y-6">

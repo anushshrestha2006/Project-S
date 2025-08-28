@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { z } from 'zod';
@@ -11,7 +10,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { doc, updateDoc, collection } from 'firebase/firestore';
 import type { User, FooterSettings, Ride } from './types';
 import { format } from 'date-fns';
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateProfile } from 'firebase/auth';
 
 const commonBookingFields = {
   rideId: z.string(),
@@ -310,7 +309,14 @@ const UpdateProfileSchema = z.object({
     dob: z.string().optional(),
 });
 
-export async function updateUserProfile(prevState: any, formData: FormData): Promise<{ success: boolean; message: string; errors?: any }> {
+type UpdateProfileState = {
+    success: boolean;
+    message: string;
+    errors?: any;
+    user?: Partial<User> | null;
+}
+
+export async function updateUserProfile(prevState: any, formData: FormData): Promise<UpdateProfileState> {
     const validatedFields = UpdateProfileSchema.safeParse({
         userId: formData.get('userId'),
         name: formData.get('name'),
@@ -326,16 +332,23 @@ export async function updateUserProfile(prevState: any, formData: FormData): Pro
         };
     }
 
+    const { userId, ...profileData } = validatedFields.data;
+
     try {
-        await updateUserProfileInDb(validatedFields.data.userId, {
-            name: validatedFields.data.name,
-            phoneNumber: validatedFields.data.phoneNumber,
-            dob: validatedFields.data.dob,
-        });
+        const currentUser = auth.currentUser;
+        if (!currentUser || currentUser.uid !== userId) {
+            throw new Error("Authentication error.");
+        }
+
+        await updateUserProfileInDb(userId, profileData);
+
+        if (currentUser.displayName !== profileData.name) {
+            await updateProfile(currentUser, { displayName: profileData.name });
+        }
 
         revalidatePath('/profile');
-        revalidatePath('/header');
-        return { success: true, message: 'Profile updated successfully!' };
+        revalidatePath('/header'); // to update name in header
+        return { success: true, message: 'Profile updated successfully!', user: profileData };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
         return { success: false, message: `Failed to update profile: ${errorMessage}` };
@@ -505,4 +518,60 @@ export async function deleteRide(rideId: string): Promise<{ success: boolean, me
         const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
         return { success: false, message: `Failed to delete ride: ${errorMessage}` };
     }
+}
+
+const ProfilePictureSchema = z.object({
+  userId: z.string(),
+  photo: z
+    .instanceof(File)
+    .refine((file) => file.size > 0, "Please select an image file.")
+    .refine((file) => file.size < 2 * 1024 * 1024, "Image must be less than 2MB.")
+    .refine(
+      (file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type),
+      "Only .jpg, .png, and .webp formats are supported."
+    ),
+});
+
+export async function updateProfilePicture(prevState: any, formData: FormData): Promise<UpdateProfileState> {
+  const validatedFields = ProfilePictureSchema.safeParse({
+    userId: formData.get("userId"),
+    photo: formData.get("photo"),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      success: false,
+      message: "Validation failed.",
+      errors: validatedFields.error.flatten().fieldErrors,
+    };
+  }
+
+  const { userId, photo } = validatedFields.data;
+  const currentUser = auth.currentUser;
+
+  if (!currentUser || currentUser.uid !== userId) {
+    return { success: false, message: "Authentication error." };
+  }
+
+  const storagePath = `profile_pictures/${userId}.${photo.type.split('/')[1] || 'jpg'}`;
+  const storageRef = ref(storage, storagePath);
+
+  try {
+    const arrayBuffer = await photo.arrayBuffer();
+    await uploadBytes(storageRef, arrayBuffer, { contentType: photo.type });
+    const downloadURL = await getDownloadURL(storageRef);
+
+    // Update both Firestore and Firebase Auth profile
+    await updateDoc(doc(db, 'users', userId), { photoURL: downloadURL });
+    await updateProfile(currentUser, { photoURL: downloadURL });
+
+    revalidatePath('/profile');
+    revalidatePath('/header');
+
+    return { success: true, message: "Profile picture updated!", user: { photoURL: downloadURL } };
+  } catch (error) {
+    console.error("Profile picture upload error:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    return { success: false, message: `Upload failed: ${errorMessage}` };
+  }
 }
