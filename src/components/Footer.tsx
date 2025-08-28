@@ -13,7 +13,7 @@ export default async function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
           
           <div>
-            <h3 className="text-lg font-semibold text-foreground mb-4 font-headline">Sumo Sewa</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4 font-headline">Bryzoo</h3>
             <p className="text-sm">
               Your reliable partner for travel between Birgunj and Kathmandu. Book your ride with ease and comfort.
             </p>
@@ -52,7 +52,7 @@ export default async function Footer() {
         </div>
 
         <div className="mt-8 pt-6 border-t border-border/50 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} Sumo Sewa. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Bryzoo. All rights reserved.</p>
         </div>
       </div>
     </footer>

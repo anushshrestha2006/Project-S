@@ -9,7 +9,7 @@ export default function SignUpPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-headline text-primary">Create Your Account</CardTitle>
           <CardDescription>
-            Join Sumo Sewa to book your rides easily and quickly.
+            Join Bryzoo to book your rides easily and quickly.
           </CardDescription>
         </CardHeader>
         <CardContent>

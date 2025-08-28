@@ -132,7 +132,7 @@ export function MyBookings({ userId }: { userId: string }) {
                 format: [canvas.width, canvas.height]
             });
             pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-            pdf.save(`sumo-sewa-ticket-${bookingToDownload.id}.pdf`);
+            pdf.save(`bryzoo-ticket-${bookingToDownload.id}.pdf`);
         } catch (error) {
             console.error("Error generating PDF:", error);
             // You could show a toast message here

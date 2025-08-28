@@ -202,7 +202,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
         if (link.download !== undefined) {
             const url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", `sumo-sewa-bookings-${format(new Date(), "yyyy-MM-dd")}.csv`);
+            link.setAttribute("download", `bryzoo-bookings-${format(new Date(), "yyyy-MM-dd")}.csv`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();

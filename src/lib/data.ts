@@ -259,7 +259,7 @@ export const getBookingById = async (bookingId: string): Promise<Booking | null>
 const generateTicketId = (bookingDate: Date, docId: string) => {
     const datePart = format(bookingDate, 'yyMMdd');
     const randomPart = docId.substring(0, 5).toUpperCase();
-    return `SS-${datePart}-${randomPart}`;
+    return `BZO-${datePart}-${randomPart}`;
 };
 
 export const createBooking = async (

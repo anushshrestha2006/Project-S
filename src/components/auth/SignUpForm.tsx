@@ -109,7 +109,7 @@ export function SignUpForm() {
 
         toast({
             title: 'Account Created Successfully!',
-            description: "Welcome to Sumo Sewa. You are now logged in.",
+            description: "Welcome to Bryzoo. You are now logged in.",
         });
         router.push('/');
         router.refresh();

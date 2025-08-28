@@ -17,7 +17,7 @@ export function TicketContent({ booking }: { booking: Booking }) {
         <div className="w-full max-w-md bg-background shadow-2xl rounded-2xl overflow-hidden relative">
             <div className="bg-primary text-primary-foreground p-5 text-center">
                 <h1 className="text-2xl font-bold font-headline">Travel Ticket</h1>
-                <p className="text-sm opacity-90">Sumo Sewa</p>
+                <p className="text-sm opacity-90">Bryzoo</p>
             </div>
             
             <div className="p-6 space-y-6">
@@ -89,7 +89,7 @@ export function TicketContent({ booking }: { booking: Booking }) {
 
                 <div className="text-center text-xs text-muted-foreground">
                     <p>Please present this ticket (digital or printed) at the time of boarding.</p>
-                    <p>Thank you for choosing Sumo Sewa!</p>
+                    <p>Thank you for choosing Bryzoo!</p>
                 </div>
 
             </div>

@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-  font-family: 'PT Sans', sans-serif;
+  font-family: 'Poppins', sans-serif;
 }
 
 @layer base {
@@ -14,19 +14,19 @@ body {
     --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
-    --primary: 205 90% 55%; /* Sky Blue */
+    --primary: 221 83% 53%; /* Vibrant Blue */
     --primary-foreground: 210 40% 98%;
     --secondary: 220 14.3% 95.9%;
     --secondary-foreground: 220.9 39.3% 11%;
     --muted: 220 14.3% 95.9%;
     --muted-foreground: 220 8.9% 46.1%;
-    --accent: 205 90% 92%; /* Lighter Sky Blue */
+    --accent: 221 83% 95%; /* Lighter Vibrant Blue */
     --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 205 90% 55%;
+    --ring: 221 83% 53%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -41,19 +41,19 @@ body {
     --card-foreground: 0 0% 98%;
     --popover: 224 71.4% 4.1%;
     --popover-foreground: 0 0% 98%;
-    --primary: 205 90% 65%;
+    --primary: 221 83% 63%;
     --primary-foreground: 210 40% 98%;
     --secondary: 215 27.9% 16.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 215 27.9% 16.9%;
     --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 205 90% 15%;
+    --accent: 221 83% 15%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 215 27.9% 16.9%;
     --input: 215 27.9% 16.9%;
-    --ring: 205 90% 65%;
+    --ring: 221 83% 63%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;

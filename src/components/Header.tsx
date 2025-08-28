@@ -71,7 +71,7 @@ export default function Header() {
         <div className="flex items-center space-x-4 mr-6">
             <Link href="/" className="flex items-center space-x-2">
               <Bus className="h-6 w-6 text-primary" />
-              <span className="font-bold font-headline text-lg">Sumo Sewa</span>
+              <span className="font-bold font-headline text-lg">Bryzoo</span>
             </Link>
             <Link href="/" passHref>
                <Button variant="ghost" className="flex items-center space-x-2">
