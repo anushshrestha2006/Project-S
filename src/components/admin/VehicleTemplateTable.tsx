@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import type { RideTemplate } from '@/lib/types';
 import {
   Table,
@@ -24,11 +23,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Clock, Edit, Hash, PlusCircle, Trash2, Loader2, Users, User, Car } from 'lucide-react';
+import { ArrowRight, Clock, Edit, Hash, PlusCircle, Trash2, Loader2, Users, User, Car, Search } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { VehicleTemplateForm } from './VehicleTemplateForm';
 import { deleteRideTemplate } from '@/lib/actions';
+import { Input } from '../ui/input';
 
 function DeleteTemplateButton({ template, onConfirm, isPending }: { template: RideTemplate, onConfirm: (templateId: string) => void, isPending: boolean }) {
     return (
@@ -65,6 +65,7 @@ export function VehicleTemplateTable({
     const [templates, setTemplates] = useState(initialTemplates);
     const [selectedTemplate, setSelectedTemplate] = useState<RideTemplate | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
@@ -98,9 +99,27 @@ export function VehicleTemplateTable({
         }
     }
 
+    const filteredTemplates = useMemo(() => {
+        if (!searchTerm) return templates;
+        const lowercasedFilter = searchTerm.toLowerCase();
+        return templates.filter(template => 
+            template.vehicleNumber.toLowerCase().includes(lowercasedFilter) ||
+            template.ownerName.toLowerCase().includes(lowercasedFilter)
+        );
+    }, [templates, searchTerm]);
+
     return (
         <>
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-between items-center mb-4">
+                 <div className="relative w-full max-w-sm">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by vehicle no. or owner..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8"
+                    />
+                </div>
                 <Button onClick={handleAdd}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add New Vehicle
@@ -118,7 +137,7 @@ export function VehicleTemplateTable({
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {templates.length > 0 ? templates.map(template => (
+                        {filteredTemplates.length > 0 ? filteredTemplates.map(template => (
                             <TableRow key={template.id}>
                                 <TableCell>
                                     <div className='flex items-center gap-2'>
@@ -160,7 +179,7 @@ export function VehicleTemplateTable({
                         )) : (
                              <TableRow>
                                 <TableCell colSpan={5} className="h-24 text-center">
-                                    No vehicle templates found. Add one to get started.
+                                    No vehicle templates found.
                                 </TableCell>
                             </TableRow>
                         )}
