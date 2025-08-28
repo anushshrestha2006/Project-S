@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { getUserProfile, getPaymentDetails } from '@/lib/data';
-import type { User, PaymentMethod } from '@/lib/types';
+import type { User, PaymentDetails } from '@/lib/types';
 import { QrUploadForm } from "@/components/admin/QrUploadForm";
 import {
   Card,
@@ -17,11 +17,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-async function QrSettings() {
-    const paymentDetails = await getPaymentDetails();
+function QrSettings() {
+    const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchDetails = async () => {
+            const details = await getPaymentDetails();
+            setPaymentDetails(details);
+            setLoading(false);
+        }
+        fetchDetails();
+    }, []);
+
+    if (loading || !paymentDetails) {
+        return <SettingsSkeleton />;
+    }
     
     return (
          <Tabs defaultValue="esewa" className="w-full">
@@ -107,9 +120,7 @@ export default function SettingsPage() {
                     <CardDescription>Upload a new QR code image for each payment provider. The new QR will be shown to users immediately.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Suspense fallback={<SettingsSkeleton />}>
-                        <QrSettings />
-                    </Suspense>
+                   <QrSettings />
                 </CardContent>
             </Card>
         </div>
