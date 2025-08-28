@@ -346,7 +346,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                                  <Badge variant="outline" className="flex items-center gap-1 font-mono text-xs">
                                                     <Hash className="h-3 w-3" />
                                                     {booking.rideDetails.vehicleNumber}
-                                                </Badge>
+                                                 </Badge>
                                             </div>
                                         )}
                                         <div className="text-xs text-muted-foreground mt-2">Seats: {booking.seats.join(', ')}</div>
