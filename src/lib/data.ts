@@ -15,16 +15,16 @@ export const initialSeatsEV: Seat[] = Array.from({ length: 10 }, (_, i) => ({
     status: 'available',
 }));
 
-const RIDE_TEMPLATES_FALLBACK = [
-    { id: '1', from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 1234', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { id: '2', from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 5678', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { id: '3', from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 9012', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { id: '4', from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 3456', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { id: '5', from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 1111', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
-    { id: '6', from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 2222', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
-    { id: '7', from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 3333', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
-    { id: '8', from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 4444', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
-] as const;
+const RIDE_TEMPLATES_FALLBACK: Omit<RideTemplate, 'id'>[] = [
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 1234', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo, ownerName: 'Anush Travels', ownerEmail: 'anushshrestha8683@gmail.com' },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 5678', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo, ownerName: 'Anush Travels', ownerEmail: 'anushshrestha8683@gmail.com' },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 9012', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo, ownerName: 'Acme Transport', ownerEmail: 'owner2@example.com' },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 3456', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo, ownerName: 'Acme Transport', ownerEmail: 'owner2@example.com' },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 1111', price: 850, totalSeats: 10, initialSeats: initialSeatsEV, ownerName: 'Anush Travels', ownerEmail: 'anushshrestha8683@gmail.com' },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 2222', price: 850, totalSeats: 10, initialSeats: initialSeatsEV, ownerName: 'Anush Travels', ownerEmail: 'anushshrestha8683@gmail.com' },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 3333', price: 850, totalSeats: 10, initialSeats: initialSeatsEV, ownerName: 'Acme Transport', ownerEmail: 'owner2@example.com' },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 4444', price: 850, totalSeats: 10, initialSeats: initialSeatsEV, ownerName: 'Acme Transport', ownerEmail: 'owner2@example.com' },
+];
 
 
 export const getRideTemplates = async (): Promise<RideTemplate[]> => {
@@ -35,11 +35,13 @@ export const getRideTemplates = async (): Promise<RideTemplate[]> => {
         // If the collection is empty, populate it from the fallback and return that.
         const batch = writeBatch(db);
         RIDE_TEMPLATES_FALLBACK.forEach(template => {
-            const docRef = doc(db, 'rideTemplates', template.id);
+            const docRef = doc(collection(db, 'rideTemplates')); // Auto-generate ID
             batch.set(docRef, template);
         });
         await batch.commit();
-        return RIDE_TEMPLATES_FALLBACK.map(t => ({...t}));
+        // We need to fetch again to get the generated IDs
+        const newSnapshot = await getDocs(query(templatesCollection, orderBy('departureTime')));
+        return newSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RideTemplate));
     }
 
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RideTemplate));
@@ -56,20 +58,27 @@ const getNepalTime = () => {
 };
 
 
-export async function getRidesForDate(date: string): Promise<Ride[]> {
-    const ridesSnapshot = await getDocs(query(collection(db, 'rides'), where('date', '==', date)));
+export async function getRidesForDate(date: string, ownerEmail?: string): Promise<Ride[]> {
+    let ridesQuery = query(collection(db, 'rides'), where('date', '==', date));
+    if (ownerEmail) {
+        ridesQuery = query(ridesQuery, where('ownerEmail', '==', ownerEmail));
+    }
+    const ridesSnapshot = await getDocs(ridesQuery);
     return ridesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ride));
 }
 
 
-export async function generateRidesForDate(date: string): Promise<Ride[]> {
-    const templates = await getRideTemplates();
+export async function generateRidesForDate(date: string, ownerEmail?: string): Promise<Ride[]> {
+    let templates = await getRideTemplates();
+    if (ownerEmail) {
+        templates = templates.filter(t => t.ownerEmail === ownerEmail);
+    }
+    
     const batch = writeBatch(db);
 
     const generatedRides = templates.map(template => {
-        const rideId = `${date}-${template.id}`;
-        const newRide: Ride = {
-            id: rideId,
+        const rideId = `${date}-${template.vehicleNumber.replace(/\s/g, '')}`;
+        const newRide: Omit<Ride, 'id'> = {
             from: template.from,
             to: template.to,
             departureTime: template.departureTime,
@@ -80,10 +89,12 @@ export async function generateRidesForDate(date: string): Promise<Ride[]> {
             date: date,
             seats: JSON.parse(JSON.stringify(template.initialSeats)),
             totalSeats: template.totalSeats,
+            ownerName: template.ownerName,
+            ownerEmail: template.ownerEmail,
         };
         const rideRef = doc(db, 'rides', rideId);
         batch.set(rideRef, newRide);
-        return newRide;
+        return { id: rideId, ...newRide };
     });
 
     await batch.commit();

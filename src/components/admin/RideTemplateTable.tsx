@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Clock, Edit, Hash } from 'lucide-react';
+import { ArrowRight, Clock, Edit, Hash, User } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { RideTemplateForm } from './RideTemplateForm';
 
@@ -33,6 +33,7 @@ export function RideTemplateTable({ templates: initialTemplates }: { templates: 
                     <TableHeader>
                         <TableRow>
                             <TableHead>Route</TableHead>
+                            <TableHead>Owner</TableHead>
                             <TableHead>Vehicle</TableHead>
                             <TableHead>Timings</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -46,6 +47,13 @@ export function RideTemplateTable({ templates: initialTemplates }: { templates: 
                                         {template.from} <ArrowRight className="mx-2 h-4 w-4" /> {template.to}
                                     </div>
                                     <div className="text-sm text-muted-foreground">Price: NPR {template.price}</div>
+                                </TableCell>
+                                <TableCell>
+                                     <div className="font-medium flex items-center gap-2">
+                                        <User className="h-4 w-4" />
+                                        {template.ownerName}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">{template.ownerEmail}</div>
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant="secondary">{template.vehicleType}</Badge>

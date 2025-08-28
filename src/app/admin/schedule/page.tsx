@@ -2,16 +2,19 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { format, addDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarIcon, PlusCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Loader2, AlertTriangle, User as UserIcon } from 'lucide-react';
 import { getOrCreateRidesForDate } from '@/lib/actions';
-import type { Ride } from '@/lib/types';
+import type { Ride, User } from '@/lib/types';
 import { DailyRideTable } from '@/components/admin/DailyRideTable';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getUserProfile } from '@/lib/data';
 
 function ScheduleSkeleton() {
     return (
@@ -41,28 +44,47 @@ function ScheduleSkeleton() {
 export default function SchedulePage() {
     const [date, setDate] = useState<Date>(new Date());
     const [rides, setRides] = useState<Ride[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
-
-    const fetchRidesForDate = (selectedDate: Date) => {
-        setIsLoading(true);
-        setError(null);
-        startTransition(async () => {
-            const result = await getOrCreateRidesForDate(format(selectedDate, 'yyyy-MM-dd'));
-            if (result.success && result.rides) {
-                setRides(result.rides);
-            } else {
-                setError(result.message ?? 'An unknown error occurred.');
-                setRides([]);
-            }
-            setIsLoading(false);
-        });
-    };
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
 
     useEffect(() => {
+         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                const profile = await getUserProfile(firebaseUser.uid);
+                setCurrentUser(profile);
+            } else {
+                setCurrentUser(null);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        if (!currentUser) {
+            setIsLoading(true); // Show loading skeleton until user is identified
+            return;
+        };
+
+        const fetchRidesForDate = (selectedDate: Date) => {
+            setIsLoading(true);
+            setError(null);
+            startTransition(async () => {
+                // Pass the current user's email to filter rides
+                const result = await getOrCreateRidesForDate(format(selectedDate, 'yyyy-MM-dd'), currentUser.email);
+                if (result.success && result.rides) {
+                    setRides(result.rides);
+                } else {
+                    setError(result.message ?? 'An unknown error occurred.');
+                    setRides([]);
+                }
+                setIsLoading(false);
+            });
+        };
+
         fetchRidesForDate(date);
-    }, [date]);
+    }, [date, currentUser]);
 
     const handleDateChange = (newDate: Date | undefined) => {
         if (newDate) {
@@ -86,7 +108,7 @@ export default function SchedulePage() {
         <div className="container mx-auto px-4 py-8">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Daily Schedule Management</h1>
-                <p className="text-muted-foreground">Create, edit, or cancel rides for a specific date. Changes here override the default templates.</p>
+                <p className="text-muted-foreground">Create, edit, or cancel rides for a specific date. You can only see rides assigned to your account.</p>
             </div>
 
             <Card>
@@ -95,25 +117,33 @@ export default function SchedulePage() {
                         <div>
                              <CardTitle>Schedule for {format(date, 'MMMM d, yyyy')}</CardTitle>
                              <CardDescription>
-                                {rides.length} rides scheduled for this day.
+                                {rides.length} of your rides scheduled for this day.
                             </CardDescription>
                         </div>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className="min-w-[240px] justify-start text-left font-normal">
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {format(date, 'PPP')}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="end">
-                                <Calendar
-                                    mode="single"
-                                    selected={date}
-                                    onSelect={handleDateChange}
-                                    initialFocus
-                                />
-                            </PopoverContent>
-                        </Popover>
+                        <div className="flex items-center gap-4">
+                            {currentUser && (
+                                <div className="hidden sm:flex items-center gap-2 text-sm font-medium text-muted-foreground bg-muted px-3 py-2 rounded-md">
+                                    <UserIcon className="h-4 w-4" />
+                                    <span>{currentUser.name}</span>
+                                </div>
+                            )}
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="min-w-[240px] justify-start text-left font-normal">
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {format(date, 'PPP')}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="end">
+                                    <Calendar
+                                        mode="single"
+                                        selected={date}
+                                        onSelect={handleDateChange}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>

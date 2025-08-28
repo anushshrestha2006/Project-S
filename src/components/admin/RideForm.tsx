@@ -3,7 +3,7 @@
 
 import { useActionState, useRef, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
-import type { Ride } from '@/lib/types';
+import type { Ride, User } from '@/lib/types';
 import { createOrUpdateRide } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -18,9 +18,12 @@ import {
   SheetFooter,
   SheetClose,
 } from '@/components/ui/sheet';
-import { Loader2, Save, Hash, Clock, ArrowRight, DollarSign } from 'lucide-react';
+import { Loader2, Save, Hash, Clock, ArrowRight, DollarSign, User as UserIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { initialSeatsEV, initialSeatsSumo } from '@/lib/data';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { getUserProfile } from '@/lib/data';
 
 
 function SubmitButton({ isEditMode }: { isEditMode: boolean }) {
@@ -57,6 +60,17 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
     const { toast } = useToast();
     const formRef = useRef<HTMLFormElement>(null);
     const [vehicleType, setVehicleType] = useState<'Sumo' | 'EV' | undefined>(ride?.vehicleType);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+    useEffect(() => {
+         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                const profile = await getUserProfile(firebaseUser.uid);
+                setCurrentUser(profile);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -96,7 +110,7 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
                     <SheetDescription>
                         {isEditMode 
                             ? `Modify the details for this ride on ${date}.`
-                            : `Create a new ride for ${date}.`
+                            : `Create a new ride for ${date}. This ride will be assigned to you.`
                         }
                     </SheetDescription>
                 </SheetHeader>
@@ -104,6 +118,8 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
                     <input type="hidden" name="rideId" value={ride?.id || ''} />
                     <input type="hidden" name="date" value={date} />
                     <input type="hidden" name="seats" value={JSON.stringify(ride?.seats)} />
+                    <input type="hidden" name="ownerName" value={currentUser?.name || ''} />
+                    <input type="hidden" name="ownerEmail" value={currentUser?.email || ''} />
                      
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
