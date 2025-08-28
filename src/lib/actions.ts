@@ -3,7 +3,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, getRidesForDate, createOrUpdateRideInDb, deleteRideFromDb, createOrUpdateRideTemplateInDb, deleteRideTemplateFromDb } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, createOrUpdateRideTemplateInDb, deleteRideTemplateFromDb } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db, auth } from './firebase';
@@ -411,71 +411,6 @@ export async function changeUserPassword(prevState: any, formData: FormData): Pr
     }
 }
 
-export async function getRidesForDateAction(date: string): Promise<{ success: boolean; rides?: Ride[]; message?: string }> {
-    try {
-        let rides = await getRidesForDate(date);
-        return { success: true, rides };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'An unknown error occurred';
-        console.error(`Failed to get rides for ${date}:`, message);
-        return { success: false, message: `Failed to load schedule: ${message}` };
-    }
-}
-
-const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/;
-const RideSchema = z.object({
-    rideId: z.string().optional(),
-    from: z.enum(['Birgunj', 'Kathmandu']),
-    to: z.enum(['Birgunj', 'Kathmandu']),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format.'),
-    departureTime: z.string().regex(timeRegex, 'Invalid time format. Use hh:mm AM/PM.'),
-    arrivalTime: z.string().regex(timeRegex, 'Invalid time format. Use hh:mm AM/PM.'),
-    vehicleType: z.enum(['Sumo', 'EV']),
-    vehicleNumber: z.string().min(1, 'Vehicle number is required.'),
-    ownerName: z.string().min(1, 'Owner name is required.'),
-    price: z.coerce.number().int().positive('Price must be a positive number.'),
-    totalSeats: z.coerce.number().int().positive(),
-    seats: z.string().optional(), // JSON string of seats, only present for edits
-});
-
-export async function createOrUpdateRide(prevState: any, formData: FormData): Promise<{ success: boolean; message: string; errors?: any; ride?: Ride }> {
-    const validatedFields = RideSchema.safeParse(Object.fromEntries(formData.entries()));
-
-    if (!validatedFields.success) {
-        return {
-            success: false,
-            message: "Validation failed.",
-            errors: validatedFields.error.flatten().fieldErrors,
-        };
-    }
-
-    try {
-        const savedRide = await createOrUpdateRideInDb(validatedFields.data);
-        revalidatePath('/admin/schedule');
-        revalidatePath('/');
-        return { 
-            success: true, 
-            message: validatedFields.data.rideId ? 'Ride updated successfully.' : 'Ride created successfully.',
-            ride: savedRide
-        };
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
-        return { success: false, message: `Failed to save ride: ${errorMessage}` };
-    }
-}
-
-export async function deleteRide(rideId: string): Promise<{ success: boolean, message: string }> {
-    try {
-        await deleteRideFromDb(rideId);
-        revalidatePath('/admin/schedule');
-        revalidatePath('/');
-        return { success: true, message: 'Ride deleted successfully.' };
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
-        return { success: false, message: `Failed to delete ride: ${errorMessage}` };
-    }
-}
-
 const ProfilePictureSchema = z.object({
   userId: z.string(),
   photo: z
@@ -532,7 +467,18 @@ export async function updateProfilePicture(prevState: any, formData: FormData): 
   }
 }
 
-const RideTemplateSchema = RideSchema.omit({ rideId: true, date: true, seats: true });
+const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/;
+const RideTemplateSchema = z.object({
+    from: z.enum(['Birgunj', 'Kathmandu']),
+    to: z.enum(['Birgunj', 'Kathmandu']),
+    departureTime: z.string().regex(timeRegex, 'Invalid time format. Use hh:mm AM/PM.'),
+    arrivalTime: z.string().regex(timeRegex, 'Invalid time format. Use hh:mm AM/PM.'),
+    vehicleType: z.enum(['Sumo', 'EV']),
+    vehicleNumber: z.string().min(1, 'Vehicle number is required.'),
+    ownerName: z.string().min(1, 'Owner name is required.'),
+    price: z.coerce.number().int().positive('Price must be a positive number.'),
+    totalSeats: z.coerce.number().int().positive(),
+});
 
 export async function createOrUpdateRideTemplate(prevState: any, formData: FormData): Promise<{ success: boolean; message: string; errors?: any; rideTemplate?: RideTemplate }> {
     const rawData = Object.fromEntries(formData.entries());

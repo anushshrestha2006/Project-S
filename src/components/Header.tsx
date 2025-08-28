@@ -126,12 +126,6 @@ export default function Header() {
                       </Link>
                        {user.email === 'anushshrestha8683@gmail.com' && (
                           <>
-                            <Link href="/admin/schedule">
-                                <DropdownMenuItem>
-                                    <CalendarDays className="mr-2 h-4 w-4" />
-                                    Daily Schedule
-                                </DropdownMenuItem>
-                            </Link>
                             <DropdownMenuSeparator />
                             <DropdownMenuLabel>Super Admin</DropdownMenuLabel>
                              <Link href="/admin/vehicles">
