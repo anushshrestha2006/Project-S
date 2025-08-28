@@ -111,6 +111,7 @@ export function VehicleTemplateTable({
                     <TableHeader>
                         <TableRow>
                             <TableHead>Vehicle</TableHead>
+                            <TableHead>Owner</TableHead>
                             <TableHead>Route</TableHead>
                             <TableHead>Time</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -127,6 +128,12 @@ export function VehicleTemplateTable({
                                     <div className="flex items-center text-sm text-muted-foreground mt-1 gap-1 font-mono">
                                         <Hash className="h-3 w-3" />
                                         {template.vehicleNumber}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="font-medium flex items-center gap-2">
+                                        <User className="h-4 w-4" />
+                                        {template.ownerName}
                                     </div>
                                 </TableCell>
                                 <TableCell>
@@ -152,7 +159,7 @@ export function VehicleTemplateTable({
                             </TableRow>
                         )) : (
                              <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center">
+                                <TableCell colSpan={5} className="h-24 text-center">
                                     No vehicle templates found. Add one to get started.
                                 </TableCell>
                             </TableRow>

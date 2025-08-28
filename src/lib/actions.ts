@@ -432,6 +432,7 @@ const RideSchema = z.object({
     arrivalTime: z.string().regex(timeRegex, 'Invalid time format. Use hh:mm AM/PM.'),
     vehicleType: z.enum(['Sumo', 'EV']),
     vehicleNumber: z.string().min(1, 'Vehicle number is required.'),
+    ownerName: z.string().min(1, 'Owner name is required.'),
     price: z.coerce.number().int().positive('Price must be a positive number.'),
     totalSeats: z.coerce.number().int().positive(),
     seats: z.string().optional(), // JSON string of seats, only present for edits

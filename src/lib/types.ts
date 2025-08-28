@@ -17,6 +17,7 @@ export type RideTemplate = {
   arrivalTime: string;
   vehicleType: 'Sumo' | 'EV';
   vehicleNumber: string;
+  ownerName: string;
   price: number;
   totalSeats: number;
   initialSeats: Seat[];
@@ -30,6 +31,7 @@ export type Ride = {
   arrivalTime: string; // e.g., "02:00 PM"
   vehicleType: 'Sumo' | 'EV';
   vehicleNumber: string;
+  ownerName?: string;
   totalSeats: number;
   seats: Seat[];
   price: number;

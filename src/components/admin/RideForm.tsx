@@ -20,10 +20,11 @@ import {
 } from '@/components/ui/sheet';
 import { Loader2, Save, Hash, Clock, ArrowRight, DollarSign, User as UserIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { initialSeatsEV, initialSeatsSumo } from '@/lib/data';
+import { initialSeatsEV, initialSeatsSumo, getRideTemplates } from '@/lib/data';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { getUserProfile } from '@/lib/data';
+import type { RideTemplate } from '@/lib/types';
 
 
 function SubmitButton({ isEditMode }: { isEditMode: boolean }) {
@@ -59,17 +60,69 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
     const [state, formAction] = useActionState(createOrUpdateRide, initialState);
     const { toast } = useToast();
     const formRef = useRef<HTMLFormElement>(null);
+    const [templates, setTemplates] = useState<RideTemplate[]>([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    
+    // States for form fields to allow template selection to override them
+    const [from, setFrom] = useState(ride?.from || '');
+    const [to, setTo] = useState(ride?.to || '');
     const [vehicleType, setVehicleType] = useState<'Sumo' | 'EV' | undefined>(ride?.vehicleType);
+    const [vehicleNumber, setVehicleNumber] = useState(ride?.vehicleNumber || '');
+    const [ownerName, setOwnerName] = useState(ride?.ownerName || '');
+    const [price, setPrice] = useState(ride?.price || 850);
+    const [departureTime, setDepartureTime] = useState(ride?.departureTime || '');
+    const [arrivalTime, setArrivalTime] = useState(ride?.arrivalTime || '');
+
 
     useEffect(() => {
-        if (!isOpen) return;
+        async function fetchTemplates() {
+            const fetchedTemplates = await getRideTemplates();
+            setTemplates(fetchedTemplates);
+        }
+        fetchTemplates();
+    }, []);
 
-        // Reset form state and vehicle type when dialog opens for a new ride
-        if (!isEditMode) {
-           setVehicleType(undefined);
-           formRef.current?.reset();
-        } else {
-           setVehicleType(ride?.vehicleType);
+    // Effect to update form fields when a template is selected
+    useEffect(() => {
+        const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+        if (selectedTemplate) {
+            setFrom(selectedTemplate.from);
+            setTo(selectedTemplate.to);
+            setVehicleType(selectedTemplate.vehicleType);
+            setVehicleNumber(selectedTemplate.vehicleNumber);
+            setOwnerName(selectedTemplate.ownerName);
+            setPrice(selectedTemplate.price);
+            setDepartureTime(selectedTemplate.departureTime);
+            setArrivalTime(selectedTemplate.arrivalTime);
+        }
+    }, [selectedTemplateId, templates]);
+
+    // Effect to reset form state when dialog opens/closes or ride prop changes
+    useEffect(() => {
+        if (isOpen) {
+            if (isEditMode && ride) {
+                setFrom(ride.from);
+                setTo(ride.to);
+                setVehicleType(ride.vehicleType);
+                setVehicleNumber(ride.vehicleNumber);
+                setOwnerName(ride.ownerName || '');
+                setPrice(ride.price);
+                setDepartureTime(ride.departureTime);
+                setArrivalTime(ride.arrivalTime);
+                setSelectedTemplateId(''); // Clear template selection in edit mode
+            } else {
+                // Reset for new ride
+                formRef.current?.reset();
+                setFrom('');
+                setTo('');
+                setVehicleType(undefined);
+                setVehicleNumber('');
+                setOwnerName('');
+                setPrice(850);
+                setDepartureTime('');
+                setArrivalTime('');
+                setSelectedTemplateId('');
+            }
         }
     }, [isOpen, isEditMode, ride]);
 
@@ -99,7 +152,7 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
                     <SheetDescription>
                         {isEditMode 
                             ? `Modify the details for this ride on ${date}.`
-                            : `Create a new ride for ${date}.`
+                            : `Create a new ride for ${date}. You can start from a template.`
                         }
                     </SheetDescription>
                 </SheetHeader>
@@ -108,10 +161,27 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
                     <input type="hidden" name="date" value={date} />
                     <input type="hidden" name="seats" value={JSON.stringify(ride?.seats)} />
                      
+                    {!isEditMode && (
+                        <div className="space-y-2">
+                             <Label htmlFor="template">Start with a Template (Optional)</Label>
+                             <Select onValueChange={setSelectedTemplateId}>
+                                <SelectTrigger><SelectValue placeholder="Select a Vehicle Template" /></SelectTrigger>
+                                <SelectContent>
+                                    {templates.map(template => (
+                                        <SelectItem key={template.id} value={template.id}>
+                                            {template.vehicleNumber} ({template.from} to {template.to} at {template.departureTime})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                             </Select>
+                        </div>
+                    )}
+
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                              <Label htmlFor="from">From</Label>
-                             <Select name="from" defaultValue={ride?.from}>
+                             <Select name="from" value={from} onValueChange={setFrom}>
                                 <SelectTrigger><SelectValue placeholder="Select Origin" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Birgunj">Birgunj</SelectItem>
@@ -122,7 +192,7 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
                         </div>
                         <div className="space-y-2">
                              <Label htmlFor="to">To</Label>
-                             <Select name="to" defaultValue={ride?.to}>
+                             <Select name="to" value={to} onValueChange={setTo}>
                                 <SelectTrigger><SelectValue placeholder="Select Destination" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Birgunj">Birgunj</SelectItem>
@@ -156,16 +226,25 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
                         <Label htmlFor="vehicleNumber">Vehicle Number</Label>
                         <div className="relative">
                             <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input id="vehicleNumber" name="vehicleNumber" defaultValue={ride?.vehicleNumber} className="pl-10"/>
+                            <Input id="vehicleNumber" name="vehicleNumber" value={vehicleNumber} onChange={e => setVehicleNumber(e.target.value)} className="pl-10"/>
                         </div>
                         {state?.errors?.vehicleNumber && <p className="text-xs text-destructive">{state.errors.vehicleNumber[0]}</p>}
+                    </div>
+
+                     <div className="space-y-2">
+                        <Label htmlFor="ownerName">Owner Name</Label>
+                        <div className="relative">
+                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                            <Input id="ownerName" name="ownerName" value={ownerName} onChange={e => setOwnerName(e.target.value)} className="pl-10"/>
+                        </div>
+                        {state?.errors?.ownerName && <p className="text-xs text-destructive">{state.errors.ownerName[0]}</p>}
                     </div>
                     
                      <div className="space-y-2">
                         <Label htmlFor="price">Price (NPR)</Label>
                         <div className="relative">
                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input id="price" name="price" type="number" defaultValue={ride?.price || 850} className="pl-10"/>
+                            <Input id="price" name="price" type="number" value={price} onChange={e => setPrice(Number(e.target.value))} className="pl-10"/>
                         </div>
                         {state?.errors?.price && <p className="text-xs text-destructive">{state.errors.price[0]}</p>}
                     </div>
@@ -175,7 +254,7 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
                             <Label htmlFor="departureTime">Departure Time</Label>
                              <div className="relative">
                                 <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                <Input id="departureTime" name="departureTime" defaultValue={ride?.departureTime} placeholder="hh:mm AM/PM" className="pl-10"/>
+                                <Input id="departureTime" name="departureTime" value={departureTime} onChange={e => setDepartureTime(e.target.value)} placeholder="hh:mm AM/PM" className="pl-10"/>
                             </div>
                             {state?.errors?.departureTime && <p className="text-xs text-destructive">{state.errors.departureTime[0]}</p>}
                         </div>
@@ -183,7 +262,7 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
                             <Label htmlFor="arrivalTime">Arrival Time</Label>
                              <div className="relative">
                                 <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                <Input id="arrivalTime" name="arrivalTime" defaultValue={ride?.arrivalTime} placeholder="hh:mm AM/PM" className="pl-10"/>
+                                <Input id="arrivalTime" name="arrivalTime" value={arrivalTime} onChange={e => setArrivalTime(e.target.value)} placeholder="hh:mm AM/PM" className="pl-10"/>
                             </div>
                             {state?.errors?.arrivalTime && <p className="text-xs text-destructive">{state.errors.arrivalTime[0]}</p>}
                         </div>

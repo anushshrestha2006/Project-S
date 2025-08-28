@@ -56,30 +56,7 @@ export const getRides = async (
     let ridesQuery = query(collection(db, 'rides'));
 
     const now = getNepalTime();
-    const todayStr = format(now, 'yyyy-MM-dd');
-    let targetDate = filters.date || todayStr;
-
-    // Default logic: if no date is selected, check for available rides today. If none, show tomorrow's.
-    if (!filters.date) {
-        const todayRidesSnapshot = await getDocs(query(collection(db, 'rides'), where('date', '==', todayStr)));
-        const availableTodayRides = todayRidesSnapshot.docs
-            .map(doc => doc.data() as Ride)
-            .filter(ride => {
-                const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
-                return departureDateTime > now;
-            });
-        
-        if (availableTodayRides.length > 0) {
-            targetDate = todayStr;
-        } else {
-            // Check for rides tomorrow if today has no available ones
-             const tomorrowStr = format(addDays(now, 1), 'yyyy-MM-dd');
-             const tomorrowRidesSnapshot = await getDocs(query(collection(db, 'rides'), where('date', '==', tomorrowStr)));
-             if(tomorrowRidesSnapshot.docs.length > 0) {
-                targetDate = tomorrowStr;
-             }
-        }
-    }
+    let targetDate = filters.date || format(now, 'yyyy-MM-dd');
     
     // Always filter by a specific date
     ridesQuery = query(ridesQuery, where('date', '==', targetDate));
@@ -95,11 +72,13 @@ export const getRides = async (
     
     let finalRideList = ridesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ride));
 
-    // Filter out rides that have already departed
-    finalRideList = finalRideList.filter(ride => {
-        const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
-        return departureDateTime > now;
-    });
+    // Filter out rides that have already departed on the current day
+    if (targetDate === format(now, 'yyyy-MM-dd')) {
+        finalRideList = finalRideList.filter(ride => {
+            const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
+            return departureDateTime > now;
+        });
+    }
     
     finalRideList.sort((a, b) => {
         const timeA = parse(a.departureTime, 'hh:mm a', new Date()).getTime();
