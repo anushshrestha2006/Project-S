@@ -20,8 +20,6 @@ export type RideTemplate = {
   price: number;
   totalSeats: number;
   initialSeats: Seat[];
-  ownerName: string;
-  ownerEmail: string;
 }
 
 export type Ride = {
@@ -36,8 +34,6 @@ export type Ride = {
   seats: Seat[];
   price: number;
   date: string; // YYYY-MM-DD
-  ownerName: string;
-  ownerEmail: string;
 };
 
 export type BookingStatus = 'confirmed' | 'pending-payment' | 'cancelled';

@@ -16,13 +16,10 @@ export const initialSeatsEV: Seat[] = Array.from({ length: 10 }, (_, i) => ({
 }));
 
 // This function now exclusively fetches from the database.
-export const getRideTemplates = async (ownerEmail?: string): Promise<RideTemplate[]> => {
+export const getRideTemplates = async (): Promise<RideTemplate[]> => {
     try {
         let templatesQuery = query(collection(db, 'rideTemplates'), orderBy('departureTime'));
-        if (ownerEmail) {
-            templatesQuery = query(templatesQuery, where('ownerEmail', '==', ownerEmail));
-        }
-
+        
         const snapshot = await getDocs(templatesQuery);
         if (snapshot.empty) {
             console.log("No ride templates found in Firestore. You may need to add some for the super admin.");
@@ -45,21 +42,17 @@ const getNepalTime = () => {
 };
 
 
-export async function getRidesForDate(date: string, ownerEmail?: string): Promise<Ride[]> {
+export async function getRidesForDate(date: string): Promise<Ride[]> {
     let ridesQuery = query(collection(db, 'rides'), where('date', '==', date));
-    if (ownerEmail) {
-        ridesQuery = query(ridesQuery, where('ownerEmail', '==', ownerEmail));
-    }
     const ridesSnapshot = await getDocs(ridesQuery);
     return ridesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ride));
 }
 
 
-export async function generateRidesForDate(date: string, ownerEmail?: string): Promise<Ride[]> {
-    let templates = await getRideTemplates(ownerEmail);
+export async function generateRidesForDate(date: string): Promise<Ride[]> {
+    let templates = await getRideTemplates();
     
     if (templates.length === 0) {
-        // If there are no templates for a specific owner, there's nothing to generate.
         return [];
     }
     
@@ -78,8 +71,6 @@ export async function generateRidesForDate(date: string, ownerEmail?: string): P
             date: date,
             seats: JSON.parse(JSON.stringify(template.initialSeats)),
             totalSeats: template.totalSeats,
-            ownerName: template.ownerName,
-            ownerEmail: template.ownerEmail,
         };
         const rideRef = doc(db, 'rides', rideId);
         batch.set(rideRef, newRide);

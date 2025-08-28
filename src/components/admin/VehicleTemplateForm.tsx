@@ -183,24 +183,6 @@ export function VehicleTemplateForm({ template, isOpen, setIsOpen, onSuccess }: 
                         </div>
                     </div>
 
-                     <div className="space-y-2">
-                        <Label htmlFor="ownerName">Owner Name</Label>
-                        <div className="relative">
-                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input id="ownerName" name="ownerName" defaultValue={template?.ownerName} className="pl-10"/>
-                        </div>
-                        {state?.errors?.ownerName && <p className="text-xs text-destructive">{state.errors.ownerName[0]}</p>}
-                    </div>
-
-                     <div className="space-y-2">
-                        <Label htmlFor="ownerEmail">Owner Email</Label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input id="ownerEmail" name="ownerEmail" type="email" defaultValue={template?.ownerEmail} className="pl-10"/>
-                        </div>
-                        {state?.errors?.ownerEmail && <p className="text-xs text-destructive">{state.errors.ownerEmail[0]}</p>}
-                    </div>
-
                     <SheetFooter className="pt-6">
                         <SheetClose asChild>
                             <Button type="button" variant="outline">Cancel</Button>

@@ -113,7 +113,6 @@ export function VehicleTemplateTable({
                             <TableHead>Vehicle</TableHead>
                             <TableHead>Route</TableHead>
                             <TableHead>Time</TableHead>
-                            <TableHead>Owner</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -143,13 +142,6 @@ export function VehicleTemplateTable({
                                     </div>
                                      <div className="text-xs text-muted-foreground ml-6">Arrival: {template.arrivalTime}</div>
                                 </TableCell>
-                                <TableCell>
-                                    <div className="font-medium flex items-center gap-2">
-                                        <User className="h-4 w-4" />
-                                        {template.ownerName}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground">{template.ownerEmail}</div>
-                                </TableCell>
                                 <TableCell className="text-right">
                                     <Button variant="outline" size="sm" onClick={() => handleEdit(template)}>
                                         <Edit className="mr-2 h-4 w-4" />
@@ -160,7 +152,7 @@ export function VehicleTemplateTable({
                             </TableRow>
                         )) : (
                              <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
+                                <TableCell colSpan={4} className="h-24 text-center">
                                     No vehicle templates found. Add one to get started.
                                 </TableCell>
                             </TableRow>

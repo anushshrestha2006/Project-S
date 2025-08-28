@@ -411,12 +411,12 @@ export async function changeUserPassword(prevState: any, formData: FormData): Pr
     }
 }
 
-export async function getOrCreateRidesForDate(date: string, ownerEmail?: string): Promise<{ success: boolean; rides?: Ride[]; message?: string }> {
+export async function getOrCreateRidesForDate(date: string): Promise<{ success: boolean; rides?: Ride[]; message?: string }> {
     try {
-        let rides = await getRidesForDate(date, ownerEmail);
+        let rides = await getRidesForDate(date);
         if (rides.length === 0) {
-            // No rides found, so generate them for the given owner (or all if no owner specified)
-            rides = await generateRidesForDate(date, ownerEmail);
+            // No rides found, so generate them
+            rides = await generateRidesForDate(date);
         }
         return { success: true, rides };
     } catch (error) {
@@ -439,8 +439,6 @@ const RideSchema = z.object({
     price: z.coerce.number().int().positive('Price must be a positive number.'),
     totalSeats: z.coerce.number().int().positive(),
     seats: z.string().optional(), // JSON string of seats, only present for edits
-    ownerName: z.string().min(1, 'Owner name is required.'),
-    ownerEmail: z.string().email('Owner email is required.'),
 });
 
 export async function createOrUpdateRide(prevState: any, formData: FormData): Promise<{ success: boolean; message: string; errors?: any; ride?: Ride }> {

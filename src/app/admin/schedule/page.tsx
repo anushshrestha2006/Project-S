@@ -6,12 +6,12 @@ import { useState, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { format, addDays, isPast, parse } from 'date-fns';
+import { format, addDays, isPast, parse, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarIcon, PlusCircle, Loader2, AlertTriangle, User as UserIcon } from 'lucide-react';
+import { CalendarIcon, Loader2, AlertTriangle, User as UserIcon } from 'lucide-react';
 import { getOrCreateRidesForDate } from '@/lib/actions';
 import type { Ride, User } from '@/lib/types';
 import { DailyRideTable } from '@/components/admin/DailyRideTable';
@@ -53,7 +53,16 @@ const getNepalTime = () => {
 };
 
 export default function SchedulePage() {
-    const [date, setDate] = useState<Date>(new Date());
+    const [date, setDate] = useState<Date>(() => {
+        // This logic will only run on the client, preventing hydration mismatch
+        const now = getNepalTime();
+        // Check if it's past a certain time, e.g., 8 PM. If so, default to tomorrow.
+        // This is a rough heuristic. A better one is implemented below in useEffect.
+        if (now.getHours() >= 20) {
+            return addDays(now, 1);
+        }
+        return now;
+    });
     const [rides, setRides] = useState<Ride[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
@@ -66,12 +75,14 @@ export default function SchedulePage() {
          const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
                 const profile = await getUserProfile(firebaseUser.uid);
-                if (profile?.email !== 'anushshrestha8683@gmail.com') {
-                    router.replace('/admin');
-                } else {
-                    setCurrentUser(profile);
+                if (profile?.role !== 'admin') {
+                    router.replace('/');
+                }
+                
+                if (profile?.email === 'anushshrestha8683@gmail.com') {
                     setIsSuperAdmin(true);
                 }
+                setCurrentUser(profile);
             } else {
                 router.replace('/login');
             }
@@ -89,9 +100,7 @@ export default function SchedulePage() {
             setIsLoading(true);
             setError(null);
             startTransition(async () => {
-                // Super admin sees all rides, so no email is passed
-                const ownerEmail = isSuperAdmin ? undefined : currentUser?.email;
-                const result = await getOrCreateRidesForDate(format(selectedDate, 'yyyy-MM-dd'), ownerEmail);
+                const result = await getOrCreateRidesForDate(format(selectedDate, 'yyyy-MM-dd'));
                 
                 if (result.success && result.rides) {
                     const now = getNepalTime();
@@ -104,7 +113,8 @@ export default function SchedulePage() {
                             return !isPast(departureDateTime);
                         });
 
-                        if (availableTodayRides.length === 0) {
+                        // If no rides are left for today, jump to tomorrow
+                        if (availableTodayRides.length === 0 && result.rides.length > 0) {
                             setDate(addDays(new Date(), 1));
                             return; 
                         }
@@ -120,7 +130,7 @@ export default function SchedulePage() {
         };
 
         fetchRidesForDate(date);
-    }, [date, currentUser, isSuperAdmin]);
+    }, [date, currentUser]);
 
     const handleDateChange = (newDate: Date | undefined) => {
         if (newDate) {
@@ -152,7 +162,7 @@ export default function SchedulePage() {
         <div className="container mx-auto px-4 py-8">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Daily Schedule Management</h1>
-                <p className="text-muted-foreground">Create, edit, or cancel rides for a specific date. {isSuperAdmin ? "You can view all rides." : "You can only view your own assigned rides."}</p>
+                <p className="text-muted-foreground">Create, edit, or cancel rides for a specific date.</p>
             </div>
 
             <Card>
@@ -185,7 +195,7 @@ export default function SchedulePage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {isLoading ? (
+                    {isLoading || isPending ? (
                         <ScheduleSkeleton />
                     ) : error ? (
                          <div className="text-center py-10 text-destructive bg-red-50 border border-destructive rounded-lg">

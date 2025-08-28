@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import type { Ride } from '@/lib/types';
 
 export default async function Home({
@@ -28,18 +27,6 @@ export default async function Home({
   const date = searchParams?.date;
 
   const rides = await getRides({ from, to, date });
-
-  // Group rides by owner
-  const ridesByOwner: Record<string, Ride[]> = rides.reduce((acc, ride) => {
-    const ownerName = ride.ownerName || 'Uncategorized';
-    if (!acc[ownerName]) {
-      acc[ownerName] = [];
-    }
-    acc[ownerName].push(ride);
-    return acc;
-  }, {} as Record<string, Ride[]>);
-
-  const owners = Object.keys(ridesByOwner);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -75,24 +62,11 @@ export default async function Home({
         <h2 className="text-3xl font-bold tracking-tight text-primary font-headline mb-6 text-center">Available Rides</h2>
         
         {rides.length > 0 ? (
-           <Accordion type="multiple" defaultValue={owners} className="w-full space-y-4">
-              {owners.map((ownerName) => (
-                <AccordionItem value={ownerName} key={ownerName} className="border-b-0">
-                  <Card className="shadow-md">
-                    <AccordionTrigger className="text-xl font-headline p-6 hover:no-underline">
-                        {ownerName}
-                    </AccordionTrigger>
-                    <AccordionContent className="p-6 pt-0">
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {ridesByOwner[ownerName].map((ride) => (
-                          <RideCard key={ride.id} ride={ride} />
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </Card>
-                </AccordionItem>
-              ))}
-          </Accordion>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rides.map((ride) => (
+              <RideCard key={ride.id} ride={ride} />
+            ))}
+          </div>
         ) : (
           <div className="text-center py-16 text-muted-foreground flex flex-col items-center">
               <Bus className="w-16 h-16 mb-4"/>

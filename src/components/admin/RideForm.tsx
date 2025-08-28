@@ -60,17 +60,6 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
     const { toast } = useToast();
     const formRef = useRef<HTMLFormElement>(null);
     const [vehicleType, setVehicleType] = useState<'Sumo' | 'EV' | undefined>(ride?.vehicleType);
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
-
-    useEffect(() => {
-         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            if (firebaseUser) {
-                const profile = await getUserProfile(firebaseUser.uid);
-                setCurrentUser(profile);
-            }
-        });
-        return () => unsubscribe();
-    }, []);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -110,7 +99,7 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
                     <SheetDescription>
                         {isEditMode 
                             ? `Modify the details for this ride on ${date}.`
-                            : `Create a new ride for ${date}. This ride will be assigned to you.`
+                            : `Create a new ride for ${date}.`
                         }
                     </SheetDescription>
                 </SheetHeader>
@@ -118,8 +107,6 @@ export function RideForm({ ride, date, isOpen, setIsOpen, onSuccess }: RideFormP
                     <input type="hidden" name="rideId" value={ride?.id || ''} />
                     <input type="hidden" name="date" value={date} />
                     <input type="hidden" name="seats" value={JSON.stringify(ride?.seats)} />
-                    <input type="hidden" name="ownerName" value={currentUser?.name || ''} />
-                    <input type="hidden" name="ownerEmail" value={currentUser?.email || ''} />
                      
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
