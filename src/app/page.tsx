@@ -1,4 +1,5 @@
 
+
 import { RideCard } from '@/components/RideCard';
 import { getRides } from '@/lib/data';
 import { Bus, Search } from 'lucide-react';
@@ -27,6 +28,8 @@ export default async function Home({
   const date = searchParams?.date;
 
   const rides = await getRides({ from, to, date });
+
+  const searchPerformed = from || to || date;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -58,7 +61,7 @@ export default async function Home({
         </Card>
       </div>
       
-       {rides.length > 0 && (
+       {searchPerformed && rides.length > 0 && (
         <div>
           <h2 className="text-2xl font-bold tracking-tight mb-6">Available Rides</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -69,7 +72,7 @@ export default async function Home({
         </div>
       )}
 
-      {date && rides.length === 0 && (
+      {searchPerformed && rides.length === 0 && (
          <Card className="text-center p-8">
             <CardContent>
                 <Bus className="mx-auto h-12 w-12 text-muted-foreground" />

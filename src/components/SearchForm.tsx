@@ -1,12 +1,12 @@
 
 'use client';
 
+import { useState } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { useDebouncedCallback } from 'use-debounce';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { CalendarIcon, Search } from 'lucide-react';
+import { CalendarIcon, ArrowLeftRight, Search } from 'lucide-react';
 import { Calendar } from './ui/calendar';
 import { format, addDays, isEqual, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -17,21 +17,39 @@ export function SearchForm() {
     const pathname = usePathname();
     const { replace } = useRouter();
 
-    const handleSearch = useDebouncedCallback((params: Record<string, string | undefined>) => {
-        const urlParams = new URLSearchParams(searchParams);
-        Object.entries(params).forEach(([key, value]) => {
-            if (value) {
-                urlParams.set(key, value);
-            } else {
-                urlParams.delete(key);
-            }
-        })
-        replace(`${pathname}?${urlParams.toString()}`);
-    }, 300);
+    const [fromValue, setFromValue] = useState(searchParams.get('from') || '');
+    const [toValue, setToValue] = useState(searchParams.get('to') || '');
+    const [dateValue, setDateValue] = useState(searchParams.get('date') ? new Date(searchParams.get('date') as string) : undefined);
     
-    const fromValue = searchParams.get('from') || '';
-    const toValue = searchParams.get('to') || '';
-    const dateValue = searchParams.get('date') ? new Date(searchParams.get('date') as string) : undefined;
+    const handleSwap = () => {
+        setFromValue(toValue);
+        setToValue(fromValue);
+    };
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        const params = new URLSearchParams(searchParams);
+        if (fromValue && fromValue !== 'all') {
+            params.set('from', fromValue);
+        } else {
+            params.delete('from');
+        }
+        if (toValue && toValue !== 'all') {
+            params.set('to', toValue);
+        } else {
+            params.delete('to');
+        }
+        if (dateValue) {
+            params.set('date', format(dateValue, 'yyyy-MM-dd'));
+        } else {
+            params.delete('date');
+        }
+        replace(`${pathname}?${params.toString()}`);
+    };
+
+    const handleDateSelect = (date: Date | undefined) => {
+        setDateValue(date);
+    };
 
     const today = startOfDay(new Date());
     const nextFiveDays = Array.from({ length: 5 }, (_, i) => addDays(today, i));
@@ -39,10 +57,10 @@ export function SearchForm() {
     const selectedDate = dateValue ? startOfDay(dateValue) : undefined;
     
     return (
-        <form onSubmit={(e) => e.preventDefault()} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 items-end gap-4">
+        <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 items-end gap-4">
              <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="from">From</Label>
-                <Select name="from" value={fromValue} onValueChange={(value) => handleSearch({ from: value })}>
+                <Select name="from" value={fromValue} onValueChange={setFromValue}>
                     <SelectTrigger id="from">
                         <SelectValue placeholder="Select origin" />
                     </SelectTrigger>
@@ -54,9 +72,15 @@ export function SearchForm() {
                 </Select>
             </div>
             
+            <div className="flex items-end">
+                 <Button variant="ghost" size="icon" type="button" onClick={handleSwap} className="mx-auto" aria-label="Swap origin and destination">
+                    <ArrowLeftRight className="h-5 w-5 text-primary" />
+                </Button>
+            </div>
+
             <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="to">To</Label>
-                <Select name="to" value={toValue} onValueChange={(value) => handleSearch({ to: value })}>
+                <Select name="to" value={toValue} onValueChange={setToValue}>
                     <SelectTrigger id="to">
                         <SelectValue placeholder="Select destination" />
                     </SelectTrigger>
@@ -70,13 +94,14 @@ export function SearchForm() {
             
             <div className="grid w-full items-center gap-1.5 lg:col-span-2">
                 <Label htmlFor="date">Date</Label>
-                <div className="flex items-center gap-2">
+                <div className="grid grid-cols-6 gap-2">
                     {nextFiveDays.map(day => (
                         <Button
                             key={day.toString()}
+                            type="button"
                             variant={selectedDate && isEqual(day, selectedDate) ? 'default' : 'outline'}
-                            onClick={() => handleSearch({ date: format(day, 'yyyy-MM-dd') })}
-                            className="flex flex-col h-16 flex-1 text-base"
+                            onClick={() => handleDateSelect(day)}
+                            className="flex flex-col h-16 flex-1 text-base p-1"
                         >
                             <span className="font-bold text-lg">{format(day, 'dd')}</span>
                             <span className="text-xs">{format(day, 'EEE')}</span>
@@ -85,8 +110,9 @@ export function SearchForm() {
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
+                                type="button"
                                 variant="outline"
-                                className="h-16 w-16"
+                                className="h-16 w-full"
                                 aria-label="Open calendar"
                             >
                                 <CalendarIcon />
@@ -96,13 +122,20 @@ export function SearchForm() {
                             <Calendar
                                 mode="single"
                                 selected={selectedDate}
-                                onSelect={(date) => handleSearch({ date: date ? format(date, 'yyyy-MM-dd') : undefined })}
+                                onSelect={handleDateSelect}
                                 disabled={{ before: new Date() }}
                                 initialFocus
                             />
                         </PopoverContent>
                     </Popover>
                 </div>
+            </div>
+
+             <div className="lg:col-span-5">
+                <Button type="submit" className="w-full text-lg py-6 mt-2">
+                     <Search className="mr-2 h-5 w-5" />
+                    Search
+                </Button>
             </div>
         </form>
     );
