@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 
 import { Button } from '@/components/ui/button';
@@ -51,9 +51,12 @@ export function LoginForm() {
       let user = await getUserProfile(firebaseUser.uid);
 
       if (user) {
-        // Force admin role for specific email
-        if (user.email.toLowerCase() === 'anushshrestha8683@gmail.com') {
-          user.role = 'admin';
+        // This check is now redundant because it's handled in the signup/user creation process,
+        // but it provides an extra layer of security.
+        if (user.email.toLowerCase() === 'anushshrestha8683@gmail.com' && user.role !== 'admin') {
+            const userRef = doc(db, 'users', firebaseUser.uid);
+            await setDoc(userRef, { role: 'admin' }, { merge: true });
+            user.role = 'admin';
         }
 
         localStorage.setItem('sumo-sewa-user', JSON.stringify(user));
