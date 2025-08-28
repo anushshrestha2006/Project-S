@@ -4,7 +4,7 @@
 import { useState, useEffect, useTransition } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { format, addDays } from 'date-fns';
+import { format, addDays, isPast, parse } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -41,6 +41,15 @@ function ScheduleSkeleton() {
     )
 }
 
+// Helper to get current time in Nepal (UTC+5:45)
+const getNepalTime = () => {
+    const now = new Date();
+    const utcOffset = now.getTimezoneOffset() * 60000;
+    const utcTime = now.getTime() + utcOffset;
+    const nepalOffset = (5 * 60 + 45) * 60000;
+    return new Date(utcTime + nepalOffset);
+};
+
 export default function SchedulePage() {
     const [date, setDate] = useState<Date>(new Date());
     const [rides, setRides] = useState<Ride[]>([]);
@@ -63,7 +72,7 @@ export default function SchedulePage() {
 
     useEffect(() => {
         if (!currentUser) {
-            setIsLoading(true); // Show loading skeleton until user is identified
+            setIsLoading(true);
             return;
         };
 
@@ -71,9 +80,27 @@ export default function SchedulePage() {
             setIsLoading(true);
             setError(null);
             startTransition(async () => {
-                // Pass the current user's email to filter rides
                 const result = await getOrCreateRidesForDate(format(selectedDate, 'yyyy-MM-dd'), currentUser.email);
+                
                 if (result.success && result.rides) {
+                    const now = getNepalTime();
+                    const todayStr = format(now, 'yyyy-MM-dd');
+                    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+
+                    // This logic mirrors the homepage: if it's today and all rides have passed, show tomorrow.
+                    if (selectedDateStr === todayStr) {
+                         const availableTodayRides = result.rides.filter(ride => {
+                            const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
+                            return !isPast(departureDateTime);
+                        });
+
+                        if (availableTodayRides.length === 0) {
+                            // No rides left for today, switch to tomorrow
+                            setDate(addDays(new Date(), 1));
+                            return; // The effect will re-run for the new date
+                        }
+                    }
+                    
                     setRides(result.rides);
                 } else {
                     setError(result.message ?? 'An unknown error occurred.');
