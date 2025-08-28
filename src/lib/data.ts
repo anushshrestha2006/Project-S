@@ -49,39 +49,6 @@ export async function getRidesForDate(date: string): Promise<Ride[]> {
 }
 
 
-export async function generateRidesForDate(date: string): Promise<Ride[]> {
-    let templates = await getRideTemplates();
-    
-    if (templates.length === 0) {
-        return [];
-    }
-    
-    const batch = writeBatch(db);
-
-    const generatedRides = templates.map(template => {
-        const rideId = `${date}-${template.vehicleNumber.replace(/\s/g, '')}`;
-        const newRide: Omit<Ride, 'id'> = {
-            from: template.from,
-            to: template.to,
-            departureTime: template.departureTime,
-            arrivalTime: template.arrivalTime,
-            price: template.price,
-            vehicleType: template.vehicleType,
-            vehicleNumber: template.vehicleNumber,
-            date: date,
-            seats: JSON.parse(JSON.stringify(template.initialSeats)),
-            totalSeats: template.totalSeats,
-        };
-        const rideRef = doc(db, 'rides', rideId);
-        batch.set(rideRef, newRide);
-        return { id: rideId, ...newRide };
-    });
-
-    await batch.commit();
-    return generatedRides;
-}
-
-
 export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
@@ -105,7 +72,12 @@ export const getRides = async (
         if (availableTodayRides.length > 0) {
             targetDate = todayStr;
         } else {
-            targetDate = format(addDays(now, 1), 'yyyy-MM-dd');
+            // Check for rides tomorrow if today has no available ones
+             const tomorrowStr = format(addDays(now, 1), 'yyyy-MM-dd');
+             const tomorrowRidesSnapshot = await getDocs(query(collection(db, 'rides'), where('date', '==', tomorrowStr)));
+             if(tomorrowRidesSnapshot.docs.length > 0) {
+                targetDate = tomorrowStr;
+             }
         }
     }
     
@@ -120,16 +92,8 @@ export const getRides = async (
     }
     
     let ridesSnapshot = await getDocs(ridesQuery);
-
-    // If no rides exist for the target date, try generating them.
-    if (ridesSnapshot.empty && !isPast(parseISO(targetDate))) {
-        await generateRidesForDate(targetDate);
-        // Re-fetch after generation
-        ridesSnapshot = await getDocs(ridesQuery);
-    }
     
     let finalRideList = ridesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ride));
-
 
     // Filter out rides that have already departed
     finalRideList = finalRideList.filter(ride => {

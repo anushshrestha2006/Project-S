@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarIcon, Loader2, AlertTriangle, User as UserIcon } from 'lucide-react';
-import { getOrCreateRidesForDate } from '@/lib/actions';
+import { getRidesForDateAction } from '@/lib/actions';
 import type { Ride, User } from '@/lib/types';
 import { DailyRideTable } from '@/components/admin/DailyRideTable';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -56,11 +56,6 @@ export default function SchedulePage() {
     const [date, setDate] = useState<Date>(() => {
         // This logic will only run on the client, preventing hydration mismatch
         const now = getNepalTime();
-        // Check if it's past a certain time, e.g., 8 PM. If so, default to tomorrow.
-        // This is a rough heuristic. A better one is implemented below in useEffect.
-        if (now.getHours() >= 20) {
-            return addDays(now, 1);
-        }
         return now;
     });
     const [rides, setRides] = useState<Ride[]>([]);
@@ -69,7 +64,6 @@ export default function SchedulePage() {
     const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const router = useRouter();
-    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
     useEffect(() => {
          const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -77,10 +71,8 @@ export default function SchedulePage() {
                 const profile = await getUserProfile(firebaseUser.uid);
                 if (profile?.role !== 'admin') {
                     router.replace('/');
-                }
-                
-                if (profile?.email === 'anushshrestha8683@gmail.com') {
-                    setIsSuperAdmin(true);
+                } else if (profile.email !== 'anushshrestha8683@gmail.com') {
+                    router.replace('/admin');
                 }
                 setCurrentUser(profile);
             } else {
@@ -100,27 +92,32 @@ export default function SchedulePage() {
             setIsLoading(true);
             setError(null);
             startTransition(async () => {
-                const result = await getOrCreateRidesForDate(format(selectedDate, 'yyyy-MM-dd'));
+                const result = await getRidesForDateAction(format(selectedDate, 'yyyy-MM-dd'));
                 
                 if (result.success && result.rides) {
+                     setRides(result.rides);
+                     
+                    // Logic to determine default view date
                     const now = getNepalTime();
                     const todayStr = format(now, 'yyyy-MM-dd');
                     const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-
+                    
                     if (selectedDateStr === todayStr) {
                          const availableTodayRides = result.rides.filter(ride => {
                             const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
                             return !isPast(departureDateTime);
                         });
 
-                        // If no rides are left for today, jump to tomorrow
+                        // If no rides are left for today, and no specific date was chosen, jump to tomorrow
                         if (availableTodayRides.length === 0 && result.rides.length > 0) {
-                            setDate(addDays(new Date(), 1));
-                            return; 
+                            // Check if a specific date was selected by the user to avoid overriding it
+                            const urlParams = new URLSearchParams(window.location.search);
+                            if (!urlParams.has('date')) {
+                                setDate(addDays(new Date(), 1));
+                                return;
+                            }
                         }
                     }
-                    
-                    setRides(result.rides);
                 } else {
                     setError(result.message ?? 'An unknown error occurred.');
                     setRides([]);
@@ -128,8 +125,37 @@ export default function SchedulePage() {
                 setIsLoading(false);
             });
         };
+        
+        // Initial fetch and logic to potentially switch to tomorrow
+        const initialFetch = async () => {
+             const now = getNepalTime();
+             const todayStr = format(now, 'yyyy-MM-dd');
+             const todayResult = await getRidesForDateAction(todayStr);
 
-        fetchRidesForDate(date);
+            if (todayResult.success && todayResult.rides) {
+                 const availableTodayRides = todayResult.rides.filter(ride => {
+                    const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
+                    return !isPast(departureDateTime);
+                });
+                if (availableTodayRides.length === 0) {
+                    setDate(addDays(now, 1));
+                } else {
+                     fetchRidesForDate(date);
+                }
+            } else {
+                 fetchRidesForDate(date);
+            }
+        }
+        
+        if (currentUser) {
+            // Only run the smart default date logic once on load
+            if (format(date, 'yyyy-MM-dd') === format(getNepalTime(), 'yyyy-MM-dd')) {
+                initialFetch();
+            } else {
+                fetchRidesForDate(date);
+            }
+        }
+
     }, [date, currentUser]);
 
     const handleDateChange = (newDate: Date | undefined) => {

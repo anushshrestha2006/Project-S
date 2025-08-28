@@ -3,7 +3,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, getRidesForDate, generateRidesForDate, createOrUpdateRideInDb, deleteRideFromDb, createOrUpdateRideTemplateInDb, deleteRideTemplateFromDb } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, getRidesForDate, createOrUpdateRideInDb, deleteRideFromDb, createOrUpdateRideTemplateInDb, deleteRideTemplateFromDb } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db, auth } from './firebase';
@@ -411,17 +411,13 @@ export async function changeUserPassword(prevState: any, formData: FormData): Pr
     }
 }
 
-export async function getOrCreateRidesForDate(date: string): Promise<{ success: boolean; rides?: Ride[]; message?: string }> {
+export async function getRidesForDateAction(date: string): Promise<{ success: boolean; rides?: Ride[]; message?: string }> {
     try {
         let rides = await getRidesForDate(date);
-        if (rides.length === 0) {
-            // No rides found, so generate them
-            rides = await generateRidesForDate(date);
-        }
         return { success: true, rides };
     } catch (error) {
         const message = error instanceof Error ? error.message : 'An unknown error occurred';
-        console.error(`Failed to get or create rides for ${date}:`, message);
+        console.error(`Failed to get rides for ${date}:`, message);
         return { success: false, message: `Failed to load schedule: ${message}` };
     }
 }
