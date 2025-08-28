@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
@@ -59,6 +60,7 @@ export default function SchedulePage() {
     const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const router = useRouter();
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
     useEffect(() => {
          const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -68,6 +70,7 @@ export default function SchedulePage() {
                     router.replace('/admin');
                 } else {
                     setCurrentUser(profile);
+                    setIsSuperAdmin(true);
                 }
             } else {
                 router.replace('/login');
@@ -87,7 +90,8 @@ export default function SchedulePage() {
             setError(null);
             startTransition(async () => {
                 // Super admin sees all rides, so no email is passed
-                const result = await getOrCreateRidesForDate(format(selectedDate, 'yyyy-MM-dd'));
+                const ownerEmail = isSuperAdmin ? undefined : currentUser?.email;
+                const result = await getOrCreateRidesForDate(format(selectedDate, 'yyyy-MM-dd'), ownerEmail);
                 
                 if (result.success && result.rides) {
                     const now = getNepalTime();
@@ -116,7 +120,7 @@ export default function SchedulePage() {
         };
 
         fetchRidesForDate(date);
-    }, [date, currentUser]);
+    }, [date, currentUser, isSuperAdmin]);
 
     const handleDateChange = (newDate: Date | undefined) => {
         if (newDate) {
@@ -148,7 +152,7 @@ export default function SchedulePage() {
         <div className="container mx-auto px-4 py-8">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Daily Schedule Management</h1>
-                <p className="text-muted-foreground">Create, edit, or cancel rides for a specific date. You can view all rides.</p>
+                <p className="text-muted-foreground">Create, edit, or cancel rides for a specific date. {isSuperAdmin ? "You can view all rides." : "You can only view your own assigned rides."}</p>
             </div>
 
             <Card>
