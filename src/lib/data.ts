@@ -16,14 +16,14 @@ const initialSeatsEV: Seat[] = Array.from({ length: 10 }, (_, i) => ({
 }));
 
 const RIDE_TEMPLATES = [
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 1234', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 5678', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 9012', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 3456', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 1111', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 2222', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 3333', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 4444', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
 ] as const;
 
 
@@ -46,6 +46,7 @@ const generateRides = (): Ride[] => {
                 arrivalTime: template.arrivalTime,
                 price: template.price,
                 vehicleType: template.vehicleType,
+                vehicleNumber: template.vehicleNumber,
                 date: dateStr,
                 seats: JSON.parse(JSON.stringify(template.initialSeats)),
                 totalSeats: template.totalSeats,

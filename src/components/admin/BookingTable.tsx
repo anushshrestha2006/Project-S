@@ -168,7 +168,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
     }
 
     const handleExport = () => {
-        const headers = ["Ticket ID", "Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Screenshot URL", "Transaction ID", "Ride From", "Ride To", "Ride Date", "Departure Time", "Vehicle Type"];
+        const headers = ["Ticket ID", "Booking ID", "Ride ID", "Passenger Name", "Phone", "Seats", "Booking Date", "Status", "Payment Method", "Screenshot URL", "Transaction ID", "Ride From", "Ride To", "Ride Date", "Departure Time", "Vehicle Type", "Vehicle Number"];
         const csvRows = [headers.join(",")];
         
         filteredBookings.forEach(booking => {
@@ -191,6 +191,7 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                 booking.rideDetails.date,
                 booking.rideDetails.departureTime,
                 booking.rideDetails.vehicleType,
+                booking.rideDetails.vehicleNumber,
             ];
             csvRows.push(row.join(","));
         });
@@ -341,6 +342,10 @@ export function BookingTable({ initialBookings }: { initialBookings: Booking[] }
                                                 <Badge variant="outline" className="flex items-center gap-1">
                                                     <Bus className="h-3 w-3" />
                                                     {booking.rideDetails.vehicleType}
+                                                </Badge>
+                                                 <Badge variant="outline" className="flex items-center gap-1 font-mono text-xs">
+                                                    <Hash className="h-3 w-3" />
+                                                    {booking.rideDetails.vehicleNumber}
                                                 </Badge>
                                             </div>
                                         )}

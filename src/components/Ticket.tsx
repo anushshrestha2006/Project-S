@@ -3,7 +3,7 @@
 
 import type { Booking } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bus, Calendar, Clock, User, Ticket, Armchair, ArrowRight, Download, Loader2 } from "lucide-react";
+import { Bus, Calendar, Clock, User, Ticket, Armchair, ArrowRight, Download, Loader2, Hash } from "lucide-react";
 import { format } from 'date-fns';
 import { Badge } from "@/components/ui/badge";
 
@@ -73,7 +73,7 @@ export function TicketContent({ booking }: { booking: Booking }) {
                         <Bus className="w-5 h-5 mt-0.5 text-primary"/>
                         <div>
                             <p className="text-xs text-muted-foreground">Vehicle</p>
-                            <p className="font-semibold">{ride.vehicleType}</p>
+                            <p className="font-semibold">{ride.vehicleType} ({ride.vehicleNumber})</p>
                         </div>
                     </div>
                      <div className="flex items-start space-x-3">

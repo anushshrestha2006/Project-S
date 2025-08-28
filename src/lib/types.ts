@@ -16,6 +16,7 @@ export type Ride = {
   departureTime: string; // e.g., "06:00 AM"
   arrivalTime: string; // e.g., "02:00 PM"
   vehicleType: 'Sumo' | 'EV';
+  vehicleNumber: string;
   totalSeats: number;
   seats: Seat[];
   price: number;

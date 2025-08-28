@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Clock, Users, Bus, Armchair, Calendar } from 'lucide-react';
+import { ArrowRight, Clock, Users, Bus, Armchair, Calendar, Hash } from 'lucide-react';
 import type { Ride } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -38,9 +38,15 @@ export function RideCard({ ride }: RideCardProps) {
           <Clock className="mr-2 h-4 w-4" />
           <span>{ride.departureTime} - {ride.arrivalTime}</span>
         </div>
-        <div className="flex items-center text-sm text-muted-foreground">
-          <Bus className="mr-2 h-4 w-4" />
-          <span>{ride.vehicleType}</span>
+        <div className="flex items-center text-sm text-muted-foreground gap-4">
+          <span className="flex items-center">
+            <Bus className="mr-2 h-4 w-4" />
+            {ride.vehicleType}
+          </span>
+           <span className="flex items-center font-mono text-xs">
+            <Hash className="mr-1 h-3 w-3" />
+            {ride.vehicleNumber}
+          </span>
         </div>
          <div className="flex items-center text-sm font-semibold">
           <span>NPR {ride.price.toLocaleString()} per seat</span>
