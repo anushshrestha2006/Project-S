@@ -15,24 +15,24 @@ export const initialSeatsEV: Seat[] = Array.from({ length: 10 }, (_, i) => ({
     status: 'available',
 }));
 
-const RIDE_TEMPLATES_FALLBACK: Omit<RideTemplate, 'id'>[] = [
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 1234', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo, ownerName: 'Anush Travels', ownerEmail: 'anushshrestha8683@gmail.com' },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 5678', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo, ownerName: 'Anush Travels', ownerEmail: 'anushshrestha8683@gmail.com' },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 9012', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo, ownerName: 'Acme Transport', ownerEmail: 'owner2@example.com' },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 3456', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo, ownerName: 'Acme Transport', ownerEmail: 'owner2@example.com' },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 1111', price: 850, totalSeats: 10, initialSeats: initialSeatsEV, ownerName: 'Anush Travels', ownerEmail: 'anushshrestha8683@gmail.com' },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 2222', price: 850, totalSeats: 10, initialSeats: initialSeatsEV, ownerName: 'Anush Travels', ownerEmail: 'anushshrestha8683@gmail.com' },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 3333', price: 850, totalSeats: 10, initialSeats: initialSeatsEV, ownerName: 'Acme Transport', ownerEmail: 'owner2@example.com' },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 4444', price: 850, totalSeats: 10, initialSeats: initialSeatsEV, ownerName: 'Acme Transport', ownerEmail: 'owner2@example.com' },
-];
+// This function now exclusively fetches from the database.
+export const getRideTemplates = async (ownerEmail?: string): Promise<RideTemplate[]> => {
+    try {
+        let templatesQuery = query(collection(db, 'rideTemplates'), orderBy('departureTime'));
+        if (ownerEmail) {
+            templatesQuery = query(templatesQuery, where('ownerEmail', '==', ownerEmail));
+        }
 
-
-export const getRideTemplates = async (): Promise<Omit<RideTemplate, 'id'>[]> => {
-    // This function now returns the hardcoded list.
-    // In a real application, you might check if the templates exist in the DB
-    // and only populate if they don't, but for this simplified approach,
-    // we will rely on the hardcoded data as the single source of truth for templates.
-    return RIDE_TEMPLATES_FALLBACK;
+        const snapshot = await getDocs(templatesQuery);
+        if (snapshot.empty) {
+            console.log("No ride templates found in Firestore. You may need to add some for the super admin.");
+            return [];
+        }
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RideTemplate));
+    } catch (error) {
+        console.error("Error fetching ride templates from Firestore:", error);
+        return []; // Return empty array on error
+    }
 };
 
 // Helper to get current time in Nepal (UTC+5:45)
@@ -56,9 +56,11 @@ export async function getRidesForDate(date: string, ownerEmail?: string): Promis
 
 
 export async function generateRidesForDate(date: string, ownerEmail?: string): Promise<Ride[]> {
-    let templates = await getRideTemplates();
-    if (ownerEmail) {
-        templates = templates.filter(t => t.ownerEmail === ownerEmail);
+    let templates = await getRideTemplates(ownerEmail);
+    
+    if (templates.length === 0) {
+        // If there are no templates for a specific owner, there's nothing to generate.
+        return [];
     }
     
     const batch = writeBatch(db);
@@ -126,9 +128,17 @@ export const getRides = async (
         ridesQuery = query(ridesQuery, where('to', '==', filters.to));
     }
     
-    const ridesSnapshot = await getDocs(ridesQuery);
+    let ridesSnapshot = await getDocs(ridesQuery);
 
+    // If no rides exist for the target date, try generating them.
+    if (ridesSnapshot.empty && !isPast(parseISO(targetDate))) {
+        await generateRidesForDate(targetDate);
+        // Re-fetch after generation
+        ridesSnapshot = await getDocs(ridesQuery);
+    }
+    
     let finalRideList = ridesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ride));
+
 
     // Filter out rides that have already departed
     finalRideList = finalRideList.filter(ride => {
@@ -136,14 +146,6 @@ export const getRides = async (
         return departureDateTime > now;
     });
     
-    // If after all filtering for a future date, there are no rides, generate them.
-    if (finalRideList.length === 0 && !isPast(parseISO(targetDate))) {
-        await generateRidesForDate(targetDate);
-        // Re-fetch after generation
-        const newSnapshot = await getDocs(ridesQuery);
-        finalRideList = newSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ride));
-    }
-
     finalRideList.sort((a, b) => {
         const timeA = parse(a.departureTime, 'hh:mm a', new Date()).getTime();
         const timeB = parse(b.departureTime, 'hh:mm a', new Date()).getTime();
@@ -451,4 +453,30 @@ export async function createOrUpdateRideInDb(rideData: Omit<Ride, 'id' | 'seats'
 export async function deleteRideFromDb(rideId: string): Promise<void> {
     const rideRef = doc(db, 'rides', rideId);
     await deleteDoc(rideRef);
+}
+
+export async function createOrUpdateRideTemplateInDb(templateData: Omit<RideTemplate, 'id' | 'initialSeats'> & { id?: string }): Promise<RideTemplate> {
+    const { id, ...dataToSave } = templateData;
+    const isEditing = !!id;
+
+    const initialSeats = dataToSave.vehicleType === 'Sumo' ? initialSeatsSumo : initialSeatsEV;
+
+    const templateDoc: Omit<RideTemplate, 'id'> = {
+        ...dataToSave,
+        initialSeats: initialSeats,
+    };
+    
+    if (isEditing) {
+        const templateRef = doc(db, 'rideTemplates', id!);
+        await setDoc(templateRef, templateDoc, { merge: true });
+        return { id: id!, ...templateDoc };
+    } else {
+        const newTemplateRef = doc(collection(db, 'rideTemplates'));
+        await setDoc(newTemplateRef, templateDoc);
+        return { id: newTemplateRef.id, ...templateDoc };
+    }
+}
+
+export async function deleteRideTemplateFromDb(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'rideTemplates', id));
 }

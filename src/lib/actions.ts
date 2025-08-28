@@ -3,7 +3,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, getRidesForDate, generateRidesForDate, createOrUpdateRideInDb, deleteRideFromDb } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, getRidesForDate, generateRidesForDate, createOrUpdateRideInDb, deleteRideFromDb, createOrUpdateRideTemplateInDb, deleteRideTemplateFromDb } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db, auth } from './firebase';
@@ -534,5 +534,47 @@ export async function updateProfilePicture(prevState: any, formData: FormData): 
     console.error("Profile picture upload error:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     return { success: false, message: `Upload failed: ${errorMessage}` };
+  }
+}
+
+const RideTemplateSchema = RideSchema.omit({ rideId: true, date: true, seats: true });
+
+export async function createOrUpdateRideTemplate(prevState: any, formData: FormData): Promise<{ success: boolean; message: string; errors?: any; rideTemplate?: RideTemplate }> {
+    const rawData = Object.fromEntries(formData.entries());
+    const validatedFields = RideTemplateSchema.safeParse(rawData);
+
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: "Validation failed.",
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+    
+    try {
+        const savedTemplate = await createOrUpdateRideTemplateInDb({
+            ...validatedFields.data,
+            id: rawData.id as string | undefined,
+        });
+        revalidatePath('/admin/vehicles');
+        return { 
+            success: true, 
+            message: rawData.id ? 'Vehicle template updated successfully.' : 'Vehicle template created successfully.',
+            rideTemplate: savedTemplate,
+        };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+        return { success: false, message: `Failed to save vehicle template: ${errorMessage}` };
+    }
+}
+
+export async function deleteRideTemplate(id: string): Promise<{ success: boolean; message: string }> {
+  try {
+    await deleteRideTemplateFromDb(id);
+    revalidatePath('/admin/vehicles');
+    return { success: true, message: 'Vehicle template deleted successfully.' };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    return { success: false, message: `Failed to delete vehicle template: ${errorMessage}` };
   }
 }

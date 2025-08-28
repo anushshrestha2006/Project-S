@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket, Users, Settings, Wrench, Home, BusFront, CalendarDays } from 'lucide-react';
+import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket, Users, Settings, Wrench, Home, BusFront, CalendarDays, Car } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { User } from '@/lib/types';
 import {
@@ -134,6 +134,12 @@ export default function Header() {
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuLabel>Super Admin</DropdownMenuLabel>
+                             <Link href="/admin/vehicles">
+                              <DropdownMenuItem>
+                                  <Car className="mr-2 h-4 w-4" />
+                                  Vehicle Management
+                              </DropdownMenuItem>
+                            </Link>
                             <Link href="/admin/users">
                               <DropdownMenuItem>
                                   <Users className="mr-2 h-4 w-4" />
