@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { format, addDays, isPast, parse } from 'date-fns';
@@ -57,18 +58,23 @@ export default function SchedulePage() {
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const router = useRouter();
 
     useEffect(() => {
          const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
                 const profile = await getUserProfile(firebaseUser.uid);
-                setCurrentUser(profile);
+                if (profile?.email !== 'anushshrestha8683@gmail.com') {
+                    router.replace('/admin');
+                } else {
+                    setCurrentUser(profile);
+                }
             } else {
-                setCurrentUser(null);
+                router.replace('/login');
             }
         });
         return () => unsubscribe();
-    }, []);
+    }, [router]);
 
     useEffect(() => {
         if (!currentUser) {
@@ -80,14 +86,14 @@ export default function SchedulePage() {
             setIsLoading(true);
             setError(null);
             startTransition(async () => {
-                const result = await getOrCreateRidesForDate(format(selectedDate, 'yyyy-MM-dd'), currentUser.email);
+                // Super admin sees all rides, so no email is passed
+                const result = await getOrCreateRidesForDate(format(selectedDate, 'yyyy-MM-dd'));
                 
                 if (result.success && result.rides) {
                     const now = getNepalTime();
                     const todayStr = format(now, 'yyyy-MM-dd');
                     const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
 
-                    // This logic mirrors the homepage: if it's today and all rides have passed, show tomorrow.
                     if (selectedDateStr === todayStr) {
                          const availableTodayRides = result.rides.filter(ride => {
                             const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
@@ -95,9 +101,8 @@ export default function SchedulePage() {
                         });
 
                         if (availableTodayRides.length === 0) {
-                            // No rides left for today, switch to tomorrow
                             setDate(addDays(new Date(), 1));
-                            return; // The effect will re-run for the new date
+                            return; 
                         }
                     }
                     
@@ -131,11 +136,19 @@ export default function SchedulePage() {
         setRides(prevRides => prevRides.filter(r => r.id !== deletedRideId));
     }
 
+    if (!currentUser) {
+        return (
+             <div className="container mx-auto px-4 py-8">
+                <ScheduleSkeleton />
+             </div>
+        )
+    }
+
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold tracking-tight text-primary font-headline">Daily Schedule Management</h1>
-                <p className="text-muted-foreground">Create, edit, or cancel rides for a specific date. You can only see rides assigned to your account.</p>
+                <p className="text-muted-foreground">Create, edit, or cancel rides for a specific date. You can view all rides.</p>
             </div>
 
             <Card>
@@ -144,16 +157,10 @@ export default function SchedulePage() {
                         <div>
                              <CardTitle>Schedule for {format(date, 'MMMM d, yyyy')}</CardTitle>
                              <CardDescription>
-                                {rides.length} of your rides scheduled for this day.
+                                {rides.length} rides scheduled for this day.
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-4">
-                            {currentUser && (
-                                <div className="hidden sm:flex items-center gap-2 text-sm font-medium text-muted-foreground bg-muted px-3 py-2 rounded-md">
-                                    <UserIcon className="h-4 w-4" />
-                                    <span>{currentUser.name}</span>
-                                </div>
-                            )}
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className="min-w-[240px] justify-start text-left font-normal">

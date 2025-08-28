@@ -1,5 +1,13 @@
 
-import { getPaymentDetails } from "@/lib/data";
+
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { getUserProfile, getPaymentDetails } from '@/lib/data';
+import type { User, PaymentMethod } from '@/lib/types';
 import { QrUploadForm } from "@/components/admin/QrUploadForm";
 import {
   Card,
@@ -11,7 +19,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { PaymentMethod } from "@/lib/types";
 
 async function QrSettings() {
     const paymentDetails = await getPaymentDetails();
@@ -52,7 +59,41 @@ function SettingsSkeleton() {
 }
 
 export default function SettingsPage() {
+    const router = useRouter();
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [loading, setLoading] = useState(true);
 
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                const profile = await getUserProfile(firebaseUser.uid);
+                if (profile?.email !== 'anushshrestha8683@gmail.com') {
+                    router.replace('/admin');
+                } else {
+                    setIsSuperAdmin(true);
+                    setLoading(false);
+                }
+            } else {
+                router.replace('/login');
+            }
+        });
+        return () => unsubscribe();
+    }, [router]);
+
+    if (loading) {
+        return (
+            <div className="container mx-auto px-4 py-8">
+                <div className="mb-8">
+                    <Skeleton className="h-10 w-1/4" />
+                    <Skeleton className="h-6 w-1/2 mt-2" />
+                </div>
+                <div className="max-w-lg mx-auto">
+                    <SettingsSkeleton />
+                </div>
+            </div>
+        );
+    }
+    
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="mb-8">
