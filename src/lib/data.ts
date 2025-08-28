@@ -54,6 +54,17 @@ export const getRideTemplates = async (ownerEmail?: string): Promise<RideTemplat
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RideTemplate));
 };
 
+export const getRideTemplateById = async (templateId: string): Promise<RideTemplate | null> => {
+    const templateRef = doc(db, 'rideTemplates', templateId);
+    const docSnap = await getDoc(templateRef);
+
+    if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as RideTemplate;
+    }
+    
+    return null;
+}
+
 
 // Helper to get current time in Nepal (UTC+5:45)
 const getNepalTime = () => {
