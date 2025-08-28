@@ -80,7 +80,7 @@ export default function Header() {
                </Button>
             </Link>
         </div>
-        <div className="flex flex-1 items-center justify-end space-x-4">
+        <div className="flex flex-1 items-center justify-end space-x-2">
           <nav className="flex items-center space-x-2">
             {user ? (
               <DropdownMenu>
@@ -171,16 +171,16 @@ export default function Header() {
               </DropdownMenu>
             ) : (
               <>
-                <Link href="/login">
-                  <Button variant="outline">
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Login
+                <Link href="/login" passHref>
+                  <Button variant="outline" size="sm" className="w-10 h-10 p-0 sm:w-auto sm:px-4 sm:h-9">
+                    <LogIn className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Login</span>
                   </Button>
                 </Link>
-                 <Link href="/signup">
-                  <Button>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Sign Up
+                 <Link href="/signup" passHref>
+                  <Button size="sm" className="w-10 h-10 p-0 sm:w-auto sm:px-4 sm:h-9">
+                    <UserPlus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Sign Up</span>
                   </Button>
                 </Link>
               </>
