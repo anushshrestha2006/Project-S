@@ -27,20 +27,27 @@ const RIDE_TEMPLATES_FALLBACK: Omit<RideTemplate, 'id'>[] = [
 ];
 
 
-export const getRideTemplates = async (): Promise<RideTemplate[]> => {
+export const getRideTemplates = async (ownerEmail?: string): Promise<RideTemplate[]> => {
     const templatesCollection = collection(db, 'rideTemplates');
-    const snapshot = await getDocs(query(templatesCollection, orderBy('departureTime')));
+    let templatesQuery = query(templatesCollection, orderBy('ownerName'), orderBy('departureTime'));
 
-    if (snapshot.empty) {
-        // If the collection is empty, populate it from the fallback and return that.
+    // If an ownerEmail is provided, filter the templates by it
+    if (ownerEmail) {
+        templatesQuery = query(templatesQuery, where('ownerEmail', '==', ownerEmail));
+    }
+    
+    const snapshot = await getDocs(templatesQuery);
+
+    // This initialization logic should only run if the database is completely empty.
+    if (snapshot.empty && !ownerEmail) {
         const batch = writeBatch(db);
         RIDE_TEMPLATES_FALLBACK.forEach(template => {
-            const docRef = doc(collection(db, 'rideTemplates')); // Auto-generate ID
+            const docRef = doc(collection(db, 'rideTemplates'));
             batch.set(docRef, template);
         });
         await batch.commit();
-        // We need to fetch again to get the generated IDs
-        const newSnapshot = await getDocs(query(templatesCollection, orderBy('departureTime')));
+        
+        const newSnapshot = await getDocs(templatesQuery);
         return newSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RideTemplate));
     }
 

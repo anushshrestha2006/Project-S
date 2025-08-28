@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useActionState, useRef, useEffect } from 'react';
@@ -44,31 +45,31 @@ interface RideTemplateFormProps {
     template: RideTemplate;
     isOpen: boolean;
     setIsOpen: (open: boolean) => void;
+    onSuccess: (updatedTemplate: RideTemplate) => void;
 }
 
-export function RideTemplateForm({ template, isOpen, setIsOpen }: RideTemplateFormProps) {
-    const initialState = { success: false, message: '', errors: {} };
+export function RideTemplateForm({ template, isOpen, setIsOpen, onSuccess }: RideTemplateFormProps) {
+    const initialState = { success: false, message: '', errors: {}, template: null };
     const [state, formAction] = useActionState(updateRideTemplate, initialState);
     const { toast } = useToast();
     const formRef = useRef<HTMLFormElement>(null);
 
     useEffect(() => {
-        if (state.message) {
-            if (state.success) {
-                toast({
-                    title: 'Success!',
-                    description: state.message,
-                });
-                setIsOpen(false);
-            } else {
-                toast({
-                    variant: 'destructive',
-                    title: 'Update Failed',
-                    description: state.message,
-                });
-            }
+        if (state.success && state.template) {
+            toast({
+                title: 'Success!',
+                description: state.message,
+            });
+            onSuccess(state.template);
+            setIsOpen(false);
+        } else if (!state.success && state.message) {
+            toast({
+                variant: 'destructive',
+                title: 'Update Failed',
+                description: state.message,
+            });
         }
-    }, [state, toast, setIsOpen]);
+    }, [state, toast, setIsOpen, onSuccess]);
 
     if (!template) return null;
 
@@ -78,7 +79,7 @@ export function RideTemplateForm({ template, isOpen, setIsOpen }: RideTemplateFo
                 <SheetHeader>
                     <SheetTitle>Edit Ride Template</SheetTitle>
                     <SheetDescription>
-                        Modify the details for this ride template. Price and route are not editable.
+                        Modify the details for this ride template. Price, route, and owner are not editable.
                     </SheetDescription>
                 </SheetHeader>
                 <form ref={formRef} action={formAction} className="py-6 space-y-6">
@@ -89,6 +90,7 @@ export function RideTemplateForm({ template, isOpen, setIsOpen }: RideTemplateFo
                              <div className="font-bold text-lg flex items-center">{template.from} <ArrowRight className="mx-2 h-5 w-5" /> {template.to}</div>
                              <Badge variant="secondary">{template.vehicleType}</Badge>
                         </div>
+                        <div className="text-sm text-muted-foreground">Owner: {template.ownerName} ({template.ownerEmail})</div>
                         <div className="text-sm text-muted-foreground">Price: NPR {template.price.toLocaleString()}</div>
                     </div>
 

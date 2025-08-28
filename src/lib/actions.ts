@@ -1,14 +1,15 @@
 
+
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, updateRideTemplateInDb, getRidesForDate, generateRidesForDate, createOrUpdateRideInDb, deleteRideFromDb } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, updateRideTemplateInDb, getRidesForDate, generateRidesForDate, createOrUpdateRideInDb, deleteRideFromDb, getRideTemplateById } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db, auth } from './firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { doc, updateDoc, collection } from 'firebase/firestore';
-import type { User, FooterSettings, Ride } from './types';
+import type { User, FooterSettings, Ride, RideTemplate } from './types';
 import { format } from 'date-fns';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateProfile } from 'firebase/auth';
 
@@ -418,7 +419,14 @@ const RideTemplateSchema = z.object({
     arrivalTime: z.string().regex(timeRegex, 'Invalid time format. Use hh:mm AM/PM.'),
 });
 
-export async function updateRideTemplate(prevState: any, formData: FormData): Promise<{ success: boolean; message: string, errors?: any }> {
+type RideTemplateState = {
+    success: boolean;
+    message: string;
+    errors?: any;
+    template?: RideTemplate | null;
+}
+
+export async function updateRideTemplate(prevState: any, formData: FormData): Promise<RideTemplateState> {
     const validatedFields = RideTemplateSchema.safeParse({
         templateId: formData.get('templateId'),
         vehicleNumber: formData.get('vehicleNumber'),
@@ -435,16 +443,16 @@ export async function updateRideTemplate(prevState: any, formData: FormData): Pr
     }
 
     try {
-        await updateRideTemplateInDb(validatedFields.data.templateId, {
-            vehicleNumber: validatedFields.data.vehicleNumber,
-            departureTime: validatedFields.data.departureTime,
-            arrivalTime: validatedFields.data.arrivalTime,
-        });
+        const { templateId, ...updateData } = validatedFields.data;
+        await updateRideTemplateInDb(templateId, updateData);
+        
+        // Fetch the updated template to return it
+        const updatedTemplate = await getRideTemplateById(templateId);
 
         revalidatePath('/admin/rides');
         revalidatePath('/');
 
-        return { success: true, message: 'Ride template updated successfully!' };
+        return { success: true, message: 'Ride template updated successfully!', template: updatedTemplate };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
         return { success: false, message: `Failed to update ride template: ${errorMessage}` };

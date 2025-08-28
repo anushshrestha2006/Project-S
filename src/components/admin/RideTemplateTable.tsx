@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -12,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Clock, Edit, Hash, User } from 'lucide-react';
+import { ArrowRight, Clock, Edit, Hash } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { RideTemplateForm } from './RideTemplateForm';
 
@@ -26,6 +27,10 @@ export function RideTemplateTable({ templates: initialTemplates }: { templates: 
         setIsSheetOpen(true);
     };
 
+    const handleTemplateUpdate = (updatedTemplate: RideTemplate) => {
+        setTemplates(prev => prev.map(t => t.id === updatedTemplate.id ? updatedTemplate : t));
+    }
+
     return (
         <>
             <div className="rounded-md border">
@@ -33,27 +38,20 @@ export function RideTemplateTable({ templates: initialTemplates }: { templates: 
                     <TableHeader>
                         <TableRow>
                             <TableHead>Route</TableHead>
-                            <TableHead>Owner</TableHead>
                             <TableHead>Vehicle</TableHead>
                             <TableHead>Timings</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {templates.map(template => (
+                      {templates.length > 0 ? (
+                        templates.map(template => (
                             <TableRow key={template.id}>
                                 <TableCell>
                                     <div className="font-medium flex items-center">
                                         {template.from} <ArrowRight className="mx-2 h-4 w-4" /> {template.to}
                                     </div>
                                     <div className="text-sm text-muted-foreground">Price: NPR {template.price}</div>
-                                </TableCell>
-                                <TableCell>
-                                     <div className="font-medium flex items-center gap-2">
-                                        <User className="h-4 w-4" />
-                                        {template.ownerName}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">{template.ownerEmail}</div>
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant="secondary">{template.vehicleType}</Badge>
@@ -75,7 +73,14 @@ export function RideTemplateTable({ templates: initialTemplates }: { templates: 
                                     </Button>
                                 </TableCell>
                             </TableRow>
-                        ))}
+                        ))
+                      ) : (
+                         <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">
+                                    You do not own any ride templates.
+                                </TableCell>
+                            </TableRow>
+                      )}
                     </TableBody>
                 </Table>
             </div>
@@ -83,14 +88,8 @@ export function RideTemplateTable({ templates: initialTemplates }: { templates: 
                 <RideTemplateForm 
                     template={selectedTemplate}
                     isOpen={isSheetOpen}
-                    setIsOpen={(open) => {
-                        setIsSheetOpen(open);
-                        if (!open) {
-                            setSelectedTemplate(null);
-                             // Optimistic update might be complex, let's just refresh for now
-                            window.location.reload();
-                        }
-                    }}
+                    setIsOpen={setIsSheetOpen}
+                    onSuccess={handleTemplateUpdate}
                 />
             )}
         </>
