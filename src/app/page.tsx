@@ -57,6 +57,29 @@ export default async function Home({
             </CardContent>
         </Card>
       </div>
+      
+       {rides.length > 0 && (
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight mb-6">Available Rides</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rides.map(ride => (
+              <RideCard key={ride.id} ride={ride} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {date && rides.length === 0 && (
+         <Card className="text-center p-8">
+            <CardContent>
+                <Bus className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-xl font-semibold">No Rides Found</h3>
+                <p className="mt-2 text-muted-foreground">
+                    There are no scheduled rides for the selected criteria. Please try another date.
+                </p>
+            </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
