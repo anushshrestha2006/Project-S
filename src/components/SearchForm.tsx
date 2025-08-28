@@ -57,7 +57,7 @@ export function SearchForm() {
     const selectedDate = dateValue ? startOfDay(dateValue) : undefined;
     
     return (
-        <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 items-end gap-4">
+        <form onSubmit={handleSearch} className="flex flex-col gap-4">
              <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="from">From</Label>
                 <Select name="from" value={fromValue} onValueChange={setFromValue}>
@@ -72,9 +72,9 @@ export function SearchForm() {
                 </Select>
             </div>
             
-            <div className="flex items-end">
+            <div className="flex items-center justify-center my-[-8px]">
                  <Button variant="ghost" size="icon" type="button" onClick={handleSwap} className="mx-auto" aria-label="Swap origin and destination">
-                    <ArrowLeftRight className="h-5 w-5 text-primary" />
+                    <ArrowLeftRight className="h-5 w-5 text-primary rotate-90" />
                 </Button>
             </div>
 
@@ -92,7 +92,7 @@ export function SearchForm() {
                 </Select>
             </div>
             
-            <div className="grid w-full items-center gap-1.5 lg:col-span-2">
+            <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="date">Date</Label>
                 <div className="grid grid-cols-6 gap-2">
                     {nextFiveDays.map(day => (
@@ -131,12 +131,10 @@ export function SearchForm() {
                 </div>
             </div>
 
-             <div className="lg:col-span-5">
-                <Button type="submit" className="w-full text-lg py-6 mt-2">
-                     <Search className="mr-2 h-5 w-5" />
-                    Search
-                </Button>
-            </div>
+            <Button type="submit" className="w-full text-lg py-6 mt-2">
+                 <Search className="mr-2 h-5 w-5" />
+                Search
+            </Button>
         </form>
     );
 }
