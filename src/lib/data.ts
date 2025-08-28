@@ -2,7 +2,7 @@
 
 import { db } from './firebase';
 import { collection, getDocs, doc, getDoc, addDoc, runTransaction, query, where, orderBy, Timestamp, writeBatch, setDoc, DocumentData, QuerySnapshot, deleteDoc, updateDoc } from 'firebase/firestore';
-import type { Ride, Booking, User, Seat, SeatStatus, PaymentDetails, FooterSettings } from './types';
+import type { Ride, Booking, User, Seat, SeatStatus, PaymentDetails, FooterSettings, RideTemplate } from './types';
 import { format, startOfDay, parse, endOfDay, isToday, parseISO, addDays, isPast } from 'date-fns';
 
 const initialSeatsSumo: Seat[] = Array.from({ length: 9 }, (_, i) => ({
@@ -15,31 +15,51 @@ const initialSeatsEV: Seat[] = Array.from({ length: 10 }, (_, i) => ({
     status: 'available',
 }));
 
-const RIDE_TEMPLATES = [
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 1234', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 5678', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 9012', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 3456', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 1111', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 2222', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
-    { from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 3333', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
-    { from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 4444', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+const RIDE_TEMPLATES_FALLBACK = [
+    { id: '1', from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 1234', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { id: '2', from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 5678', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { id: '3', from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 9012', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { id: '4', from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'Sumo', vehicleNumber: 'NA 1 JA 3456', price: 850, totalSeats: 9, initialSeats: initialSeatsSumo },
+    { id: '5', from: 'Birgunj', to: 'Kathmandu', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 1111', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+    { id: '6', from: 'Kathmandu', to: 'Birgunj', departureTime: '06:00 AM', arrivalTime: '02:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 2222', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+    { id: '7', from: 'Birgunj', to: 'Kathmandu', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 3333', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
+    { id: '8', from: 'Kathmandu', to: 'Birgunj', departureTime: '10:00 AM', arrivalTime: '06:00 PM', vehicleType: 'EV', vehicleNumber: 'BA 1 YA 4444', price: 850, totalSeats: 10, initialSeats: initialSeatsEV },
 ] as const;
 
 
+export const getRideTemplates = async (): Promise<RideTemplate[]> => {
+    const templatesCollection = collection(db, 'rideTemplates');
+    const snapshot = await getDocs(query(templatesCollection, orderBy('departureTime')));
+
+    if (snapshot.empty) {
+        // If the collection is empty, populate it from the fallback and return that.
+        const batch = writeBatch(db);
+        RIDE_TEMPLATES_FALLBACK.forEach(template => {
+            const docRef = doc(db, 'rideTemplates', template.id);
+            batch.set(docRef, template);
+        });
+        await batch.commit();
+        return RIDE_TEMPLATES_FALLBACK.map(t => ({...t}));
+    }
+
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RideTemplate));
+};
+
+
 /**
- * Generates a list of all rides for the next 7 days.
- * IDs are deterministic based on date and template.
+ * Generates a list of all rides for the next 7 days based on templates from Firestore.
  */
-const generateRides = (): Ride[] => {
+const generateRides = async (): Promise<Ride[]> => {
     const rides: Ride[] = [];
     const today = new Date();
+    const templates = await getRideTemplates();
+
     for (let i = 0; i < 7; i++) {
         const date = addDays(today, i);
         const dateStr = format(date, 'yyyy-MM-dd');
-        RIDE_TEMPLATES.forEach((template, index) => {
+        templates.forEach((template) => {
             rides.push({
-                id: `${dateStr}-${index + 1}`,
+                id: `${dateStr}-${template.id}`,
                 from: template.from,
                 to: template.to,
                 departureTime: template.departureTime,
@@ -71,7 +91,7 @@ export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
     
-    let allRides: Ride[] = generateRides();
+    let allRides: Ride[] = await generateRides();
     const rideIds = allRides.map(r => r.id);
 
     const firestoreRides = new Map<string, Ride>();
@@ -146,11 +166,12 @@ export const getRideById = async (id: string, includePast = false): Promise<Ride
     const rideRef = doc(db, 'rides', id);
     const rideSnap = await getDoc(rideRef);
     
+    const allRides = await generateRides();
+    const templateRide = allRides.find(r => r.id === id);
+    if (!templateRide) return undefined;
+
     if (rideSnap.exists()) {
         const ride = rideSnap.data() as Ride;
-        const allRides = generateRides();
-        const templateRide = allRides.find(r => r.id === id);
-        if (!templateRide) return undefined; 
         
         const mergedRide = { ...templateRide, ...ride };
         
@@ -164,17 +185,14 @@ export const getRideById = async (id: string, includePast = false): Promise<Ride
         return { id: rideSnap.id, ...mergedRide };
 
     } else {
-        const baseRide = generateRides().find(r => r.id === id);
-        if(!baseRide) return undefined;
-        
-         if (!includePast) {
+        if (!includePast) {
             const now = getNepalTime();
-            const departureDateTime = parse(`${baseRide.date} ${baseRide.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
+            const departureDateTime = parse(`${templateRide.date} ${templateRide.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
             if (isPast(departureDateTime)) {
                 return undefined;
             }
         }
-        return baseRide as Ride;
+        return templateRide;
     }
 };
 
@@ -258,25 +276,22 @@ export const createBooking = async (
 ): Promise<Booking> => {
     const rideRef = doc(db, 'rides', bookingData.rideId);
     
-    // newBookingId must be declared outside the transaction scope to be accessible later.
     let newBookingId: string | null = null;
 
     await runTransaction(db, async (transaction) => {
         const rideDoc = await transaction.get(rideRef);
         let ride: Ride;
 
+        const generatedRides = await generateRides();
+        const generatedRide = generatedRides.find(r => r.id === bookingData.rideId);
+        if (!generatedRide) {
+            throw new Error("Ride schedule not found!");
+        }
+
         if (!rideDoc.exists()) {
-            const generatedRide = generateRides().find(r => r.id === bookingData.rideId);
-            if (!generatedRide) {
-                throw new Error("Ride schedule not found!");
-            }
             ride = generatedRide;
         } else {
-            const templateRide = generateRides().find(r => r.id === bookingData.rideId);
-            if (!templateRide) {
-                throw new Error("Base ride template not found.");
-            }
-            ride = { ...templateRide, ...rideDoc.data() } as Ride;
+            ride = { ...generatedRide, ...rideDoc.data() } as Ride;
         }
 
         bookingData.seats.forEach(seatNumber => {
@@ -292,10 +307,8 @@ export const createBooking = async (
                 : seat
         );
         
-        // This set operation will create the ride document if it doesn't exist
         transaction.set(rideRef, { seats: newSeats }, { merge: true });
         
-        // Generate a new booking document reference WITHIN the transaction
         const newBookingRef = doc(collection(db, 'bookings'));
         newBookingId = newBookingRef.id;
 
@@ -310,7 +323,6 @@ export const createBooking = async (
         transaction.set(newBookingRef, bookingWithTimestamp);
     });
 
-    // After the transaction, if newBookingId is null, it means the transaction failed.
     if (!newBookingId) {
         throw new Error("Booking transaction failed to complete and did not return a booking ID.");
     }
@@ -335,12 +347,14 @@ export const updateRideSeats = async (rideId: string, seatNumbers: number[], new
         const rideDoc = await transaction.get(rideRef);
          let ride: Ride;
 
+        const generatedRides = await generateRides();
+        const generatedRide = generatedRides.find(r => r.id === rideId);
+        if (!generatedRide) throw new Error("Ride not found for seat update");
+
         if (!rideDoc.exists()) {
-            const generatedRide = generateRides().find(r => r.id === rideId);
-            if (!generatedRide) throw new Error("Ride not found for seat update");
             ride = generatedRide;
         } else {
-            ride = { ...generateRides().find(r => r.id === rideId)!, ...rideDoc.data() } as Ride;
+            ride = { ...generatedRide, ...rideDoc.data() } as Ride;
         }
 
         const newSeats = ride.seats.map(seat => 
@@ -437,4 +451,9 @@ export async function updateFooterSettings(settings: FooterSettings): Promise<vo
 export async function updateUserProfileInDb(userId: string, data: Partial<Pick<User, 'name' | 'phoneNumber' | 'dob'>>): Promise<void> {
     const userDocRef = doc(db, 'users', userId);
     await updateDoc(userDocRef, data);
+}
+
+export async function updateRideTemplateInDb(templateId: string, data: Partial<Pick<RideTemplate, 'vehicleNumber' | 'departureTime' | 'arrivalTime'>>): Promise<void> {
+    const templateRef = doc(db, 'rideTemplates', templateId);
+    await updateDoc(templateRef, data);
 }

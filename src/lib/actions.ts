@@ -3,7 +3,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, updateRideTemplateInDb } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db, auth } from './firebase';
@@ -133,7 +133,6 @@ export async function processBooking(prevState: BookingState | null, formData: F
     };
   }
 
-  // Revalidate the booking page to show updated seat status
   revalidatePath(`/booking/${rideId}`);
   if(role === 'admin') {
       revalidatePath('/admin');
@@ -156,15 +155,12 @@ export async function updateBookingStatus(
     try {
         const bookingRef = doc(db, 'bookings', bookingId);
 
-        // If confirming, update the seats on the ride to 'booked'
         if (newStatus === 'confirmed') {
             await updateRideSeats(rideId, seats, 'booked');
         } else if (newStatus === 'cancelled') {
-             // If cancelling, make the seats available again
             await updateRideSeats(rideId, seats, 'available');
         }
 
-        // Update the booking status
         await updateDoc(bookingRef, { status: newStatus });
 
         revalidatePath('/admin');
@@ -180,17 +176,12 @@ export async function updateBookingStatus(
 
 export async function clearAllBookings(): Promise<{ success: boolean; message: string }> {
     try {
-        // This is a very destructive action. In a real-world scenario, you might want to archive data
-        // instead of deleting it permanently. For this project, we'll proceed with deletion.
-
-        // Get all ride and booking documents
         const bookingsCollection = collection(db, 'bookings');
         const ridesCollection = collection(db, 'rides');
 
         const bookingsToDelete = await getAllCollectionDocuments(bookingsCollection);
         await deleteAllDocuments(bookingsToDelete);
         
-        // Ride states are stored in Firestore, so we need to clear them too to reset seats.
         const ridesToDelete = await getAllCollectionDocuments(ridesCollection);
         await deleteAllDocuments(ridesToDelete);
         
@@ -208,8 +199,6 @@ export async function clearAllBookings(): Promise<{ success: boolean; message: s
 
 export async function updateUserRole(userId: string, newRole: 'user' | 'admin'): Promise<{ success: boolean, message: string }> {
     try {
-        // In a real app, you might want additional checks to prevent a user from changing their own role
-        // or to ensure there's always at least one admin.
         const userRef = doc(db, 'users', userId);
         await updateDoc(userRef, { role: newRole });
         
@@ -224,8 +213,6 @@ export async function updateUserRole(userId: string, newRole: 'user' | 'admin'):
 }
 
 export async function deleteUser(userId: string): Promise<{ success: boolean, message: string }> {
-    // This action only deletes the Firestore user document.
-    // Deleting from Firebase Auth requires Admin SDK, typically on a server/cloud function.
     try {
         await deleteUserFromFirestore(userId);
         revalidatePath('/admin/users');
@@ -265,12 +252,10 @@ export async function uploadPaymentQr(prevState: any, formData: FormData): Promi
     const storageRef = ref(storage, storagePath);
 
     try {
-        // Upload file to Firebase Storage
         const arrayBuffer = await qrCode.arrayBuffer();
         await uploadBytes(storageRef, arrayBuffer, { contentType: qrCode.type });
         const downloadURL = await getDownloadURL(storageRef);
 
-        // Save the URL in Firestore
         await setPaymentQrUrl(paymentMethod, downloadURL);
         
         revalidatePath('/admin/settings');
@@ -310,7 +295,7 @@ export async function updateFooterSettings(prevState: any, formData: FormData): 
 
     try {
         await updateFooterSettingsInDb(validatedFields.data);
-        revalidatePath('/'); // Revalidate all pages that use the footer
+        revalidatePath('/');
         return { success: true, message: 'Footer settings updated successfully.' };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
@@ -349,7 +334,7 @@ export async function updateUserProfile(prevState: any, formData: FormData): Pro
         });
 
         revalidatePath('/profile');
-        revalidatePath('/header'); // To update user name in header
+        revalidatePath('/header');
         return { success: true, message: 'Profile updated successfully!' };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
@@ -384,7 +369,6 @@ export async function changeUserPassword(prevState: any, formData: FormData): Pr
     const user = auth.currentUser;
 
     try {
-        // Re-authenticate the user to confirm their identity
         if (user.email) {
             const credential = EmailAuthProvider.credential(user.email, currentPassword);
             await reauthenticateWithCredential(user, credential);
@@ -392,7 +376,6 @@ export async function changeUserPassword(prevState: any, formData: FormData): Pr
             throw new Error("User email is not available for re-authentication.");
         }
         
-        // If re-authentication is successful, update the password
         await updatePassword(user, newPassword);
 
         return { success: true, message: 'Password updated successfully.' };
@@ -411,5 +394,46 @@ export async function changeUserPassword(prevState: any, formData: FormData): Pr
              message = 'Too many attempts. Please try again later.';
         }
         return { success: false, message: message };
+    }
+}
+
+const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/;
+const RideTemplateSchema = z.object({
+    templateId: z.string(),
+    vehicleNumber: z.string().min(1, 'Vehicle number is required.'),
+    departureTime: z.string().regex(timeRegex, 'Invalid time format. Use hh:mm AM/PM.'),
+    arrivalTime: z.string().regex(timeRegex, 'Invalid time format. Use hh:mm AM/PM.'),
+});
+
+export async function updateRideTemplate(prevState: any, formData: FormData): Promise<{ success: boolean; message: string, errors?: any }> {
+    const validatedFields = RideTemplateSchema.safeParse({
+        templateId: formData.get('templateId'),
+        vehicleNumber: formData.get('vehicleNumber'),
+        departureTime: formData.get('departureTime'),
+        arrivalTime: formData.get('arrivalTime'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: "Validation failed.",
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    try {
+        await updateRideTemplateInDb(validatedFields.data.templateId, {
+            vehicleNumber: validatedFields.data.vehicleNumber,
+            departureTime: validatedFields.data.departureTime,
+            arrivalTime: validatedFields.data.arrivalTime,
+        });
+
+        revalidatePath('/admin/rides');
+        revalidatePath('/');
+
+        return { success: true, message: 'Ride template updated successfully!' };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+        return { success: false, message: `Failed to update ride template: ${errorMessage}` };
     }
 }

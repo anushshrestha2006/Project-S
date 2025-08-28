@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket, Users, Settings, Wrench, Home } from 'lucide-react';
+import { Bus, User as UserIcon, LogOut, LogIn, UserPlus, LayoutDashboard, Ticket, Users, Settings, Wrench, Home, BusFront } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { User } from '@/lib/types';
 import {
@@ -33,8 +33,6 @@ export default function Header() {
             setUser(profile);
             localStorage.setItem('sumo-sewa-user', JSON.stringify(profile));
         } else {
-             // This might happen if Firestore data isn't created yet
-             // We create a temporary user object until profile is fetched
              const tempUser: User = {
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || "User",
@@ -122,6 +120,12 @@ export default function Header() {
                         <DropdownMenuItem>
                             <LayoutDashboard className="mr-2 h-4 w-4" />
                             Booking Panel
+                        </DropdownMenuItem>
+                      </Link>
+                       <Link href="/admin/rides">
+                        <DropdownMenuItem>
+                            <BusFront className="mr-2 h-4 w-4" />
+                            Ride Management
                         </DropdownMenuItem>
                       </Link>
                        {user.email === 'anushshrestha8683@gmail.com' && (

@@ -9,6 +9,19 @@ export type Seat = {
   status: SeatStatus;
 };
 
+export type RideTemplate = {
+  id: string;
+  from: 'Birgunj' | 'Kathmandu';
+  to: 'Birgunj' | 'Kathmandu';
+  departureTime: string;
+  arrivalTime: string;
+  vehicleType: 'Sumo' | 'EV';
+  vehicleNumber: string;
+  price: number;
+  totalSeats: number;
+  initialSeats: Seat[];
+}
+
 export type Ride = {
   id: string;
   from: 'Birgunj' | 'Kathmandu';
