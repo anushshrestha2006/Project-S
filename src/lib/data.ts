@@ -27,44 +27,13 @@ const RIDE_TEMPLATES_FALLBACK: Omit<RideTemplate, 'id'>[] = [
 ];
 
 
-export const getRideTemplates = async (ownerEmail?: string): Promise<RideTemplate[]> => {
-    const templatesCollection = collection(db, 'rideTemplates');
-    let templatesQuery = query(templatesCollection, orderBy('ownerName'), orderBy('departureTime'));
-
-    // If an ownerEmail is provided, filter the templates by it
-    if (ownerEmail) {
-        templatesQuery = query(templatesQuery, where('ownerEmail', '==', ownerEmail));
-    }
-    
-    const snapshot = await getDocs(templatesQuery);
-
-    // This initialization logic should only run if the database is completely empty.
-    if (snapshot.empty && !ownerEmail) {
-        const batch = writeBatch(db);
-        RIDE_TEMPLATES_FALLBACK.forEach(template => {
-            const docRef = doc(collection(db, 'rideTemplates'));
-            batch.set(docRef, template);
-        });
-        await batch.commit();
-        
-        const newSnapshot = await getDocs(templatesQuery);
-        return newSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RideTemplate));
-    }
-
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RideTemplate));
+export const getRideTemplates = async (): Promise<Omit<RideTemplate, 'id'>[]> => {
+    // This function now returns the hardcoded list.
+    // In a real application, you might check if the templates exist in the DB
+    // and only populate if they don't, but for this simplified approach,
+    // we will rely on the hardcoded data as the single source of truth for templates.
+    return RIDE_TEMPLATES_FALLBACK;
 };
-
-export const getRideTemplateById = async (templateId: string): Promise<RideTemplate | null> => {
-    const templateRef = doc(db, 'rideTemplates', templateId);
-    const docSnap = await getDoc(templateRef);
-
-    if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as RideTemplate;
-    }
-    
-    return null;
-}
-
 
 // Helper to get current time in Nepal (UTC+5:45)
 const getNepalTime = () => {
@@ -449,12 +418,6 @@ export async function updateUserProfileInDb(userId: string, data: Partial<Pick<U
     const userDocRef = doc(db, 'users', userId);
     await updateDoc(userDocRef, data);
 }
-
-export async function updateRideTemplateInDb(templateId: string, data: Partial<Pick<RideTemplate, 'vehicleNumber' | 'departureTime' | 'arrivalTime'>>): Promise<void> {
-    const templateRef = doc(db, 'rideTemplates', templateId);
-    await updateDoc(templateRef, data);
-}
-
 
 export async function createOrUpdateRideInDb(rideData: Omit<Ride, 'id' | 'seats'> & { rideId?: string, seats?: string }): Promise<Ride> {
     const { rideId, seats: seatsJson, ...dataToSave } = rideData;

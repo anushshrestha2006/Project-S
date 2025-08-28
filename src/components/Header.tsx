@@ -130,12 +130,6 @@ export default function Header() {
                             Daily Schedule
                         </DropdownMenuItem>
                       </Link>
-                       <Link href="/admin/rides">
-                        <DropdownMenuItem>
-                            <BusFront className="mr-2 h-4 w-4" />
-                            Ride Templates
-                        </DropdownMenuItem>
-                      </Link>
                        {user.email === 'anushshrestha8683@gmail.com' && (
                           <>
                             <DropdownMenuSeparator />

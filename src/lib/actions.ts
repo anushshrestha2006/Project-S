@@ -3,7 +3,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, updateRideTemplateInDb, getRidesForDate, generateRidesForDate, createOrUpdateRideInDb, deleteRideFromDb, getRideTemplateById } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, getRidesForDate, generateRidesForDate, createOrUpdateRideInDb, deleteRideFromDb } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db, auth } from './firebase';
@@ -411,54 +411,6 @@ export async function changeUserPassword(prevState: any, formData: FormData): Pr
     }
 }
 
-const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/;
-const RideTemplateSchema = z.object({
-    templateId: z.string(),
-    vehicleNumber: z.string().min(1, 'Vehicle number is required.'),
-    departureTime: z.string().regex(timeRegex, 'Invalid time format. Use hh:mm AM/PM.'),
-    arrivalTime: z.string().regex(timeRegex, 'Invalid time format. Use hh:mm AM/PM.'),
-});
-
-type RideTemplateState = {
-    success: boolean;
-    message: string;
-    errors?: any;
-    template?: RideTemplate | null;
-}
-
-export async function updateRideTemplate(prevState: any, formData: FormData): Promise<RideTemplateState> {
-    const validatedFields = RideTemplateSchema.safeParse({
-        templateId: formData.get('templateId'),
-        vehicleNumber: formData.get('vehicleNumber'),
-        departureTime: formData.get('departureTime'),
-        arrivalTime: formData.get('arrivalTime'),
-    });
-
-    if (!validatedFields.success) {
-        return {
-            success: false,
-            message: "Validation failed.",
-            errors: validatedFields.error.flatten().fieldErrors,
-        };
-    }
-
-    try {
-        const { templateId, ...updateData } = validatedFields.data;
-        await updateRideTemplateInDb(templateId, updateData);
-        
-        // Fetch the updated template to return it
-        const updatedTemplate = await getRideTemplateById(templateId);
-
-        revalidatePath('/admin/rides');
-        revalidatePath('/');
-
-        return { success: true, message: 'Ride template updated successfully!', template: updatedTemplate };
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
-        return { success: false, message: `Failed to update ride template: ${errorMessage}` };
-    }
-}
-
 export async function getOrCreateRidesForDate(date: string, ownerEmail?: string): Promise<{ success: boolean; rides?: Ride[]; message?: string }> {
     try {
         let rides = await getRidesForDate(date, ownerEmail);
@@ -474,6 +426,7 @@ export async function getOrCreateRidesForDate(date: string, ownerEmail?: string)
     }
 }
 
+const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/;
 const RideSchema = z.object({
     rideId: z.string().optional(),
     from: z.enum(['Birgunj', 'Kathmandu']),
