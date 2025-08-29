@@ -92,11 +92,16 @@ export function VehicleTemplateTable({
     }
 
     const handleSuccess = (savedTemplate: RideTemplate) => {
-        if (selectedTemplate) { // Edit
-            setTemplates(prev => prev.map(t => t.id === savedTemplate.id ? savedTemplate : t));
-        } else { // Create
-            setTemplates(prev => [...prev, savedTemplate]);
-        }
+        setTemplates(prevTemplates => {
+            const exists = prevTemplates.some(t => t.id === savedTemplate.id);
+            if (exists) {
+                // It's an edit, so we map and replace
+                return prevTemplates.map(t => t.id === savedTemplate.id ? savedTemplate : t);
+            } else {
+                // It's a new template, so we add it
+                return [...prevTemplates, savedTemplate];
+            }
+        });
     }
 
     const filteredTemplates = useMemo(() => {
