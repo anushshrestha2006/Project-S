@@ -53,8 +53,6 @@ export const getRides = async (
     filters: { from?: string, to?: string, date?: string } = {}
 ): Promise<Ride[]> => {
     
-    // This function will now generate rides from templates for the given date.
-    // It will no longer fetch from the 'rides' collection for the homepage.
     const now = getNepalTime();
     const targetDate = filters.date || format(now, 'yyyy-MM-dd');
     
@@ -66,34 +64,41 @@ export const getRides = async (
         return fromMatch && toMatch;
     });
 
-    let generatedRides = filteredTemplates.map(template => {
-        const ride: Ride = {
-            id: `${template.id}-${targetDate}`, // Create a unique ID for the virtual ride
-            from: template.from,
-            to: template.to,
-            departureTime: template.departureTime,
-            arrivalTime: template.arrivalTime,
-            vehicleType: template.vehicleType,
-            vehicleNumber: template.vehicleNumber,
-            ownerName: template.ownerName,
-            totalSeats: template.totalSeats,
-            seats: template.initialSeats,
-            price: template.price,
-            date: targetDate,
-        };
-        return ride;
+    const ridePromises = filteredTemplates.map(async (template) => {
+        const rideId = `${template.id}-${targetDate}`;
+        const rideRef = doc(db, 'rides', rideId);
+        const rideSnap = await getDoc(rideRef);
+
+        if (rideSnap.exists()) {
+            // If ride exists in DB, use it directly as it has real-time seat info
+            return { id: rideSnap.id, ...rideSnap.data() } as Ride;
+        } else {
+            // Otherwise, generate a virtual ride from the template
+            const virtualRide: Ride = {
+                id: rideId,
+                from: template.from,
+                to: template.to,
+                departureTime: template.departureTime,
+                arrivalTime: template.arrivalTime,
+                vehicleType: template.vehicleType,
+                vehicleNumber: template.vehicleNumber,
+                ownerName: template.ownerName,
+                totalSeats: template.totalSeats,
+                seats: template.initialSeats,
+                price: template.price,
+                date: targetDate,
+            };
+            return virtualRide;
+        }
     });
+
+    let generatedRides = await Promise.all(ridePromises);
 
     // Filter out rides that have already departed on the current day
     if (targetDate === format(now, 'yyyy-MM-dd')) {
         generatedRides = generatedRides.filter(ride => {
             const departureDateTime = parse(`${ride.date} ${ride.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
-            // This needs to be compared against Nepal time, but since the departure time doesn't have timezone info,
-            // we compare it with the local server time representation of Nepal time. This assumes server is in UTC.
-            const nepalTimeAsLocal = new Date();
-            nepalTimeAsLocal.setUTCHours(now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds());
-            
-            return departureDateTime > nepalTimeAsLocal;
+            return !isPast(departureDateTime);
         });
     }
     
@@ -108,8 +113,17 @@ export const getRides = async (
 
 
 export const getRideById = async (id: string, includePast = false): Promise<Ride | undefined> => {
-    // The ID for a virtual ride is now `templateId-YYYY-MM-DD`
+    // The ID for a ride is now `templateId-YYYY-MM-DD`
     const [templateId, date] = id.split('-');
+    
+    // Check if the id is a real ride ID from the 'rides' collection first
+    const rideRef = doc(db, 'rides', id);
+    const rideSnap = await getDoc(rideRef);
+    if(rideSnap.exists()) {
+        return { id: rideSnap.id, ...rideSnap.data() } as Ride;
+    }
+
+    // If it's a virtual ride ID (templateId-date)
     if (!templateId || !date) {
         return undefined;
     }
@@ -121,15 +135,7 @@ export const getRideById = async (id: string, includePast = false): Promise<Ride
         return undefined;
     }
     const template = { id: templateSnap.id, ...templateSnap.data() } as RideTemplate;
-
-    // We can assume the ride might exist in the DB if a booking was made.
-    // Let's check the 'rides' collection first.
-    const rideRef = doc(db, 'rides', id);
-    const rideSnap = await getDoc(rideRef);
-    if(rideSnap.exists()) {
-        return { id: rideSnap.id, ...rideSnap.data() } as Ride;
-    }
-
+    
     // If not in 'rides' collection, generate it from the template.
     // This is a "virtual" ride that hasn't been booked against yet.
     const virtualRide: Ride = {
@@ -148,7 +154,6 @@ export const getRideById = async (id: string, includePast = false): Promise<Ride
     };
     
     if (!includePast) {
-        const now = getNepalTime();
         const departureDateTime = parse(`${virtualRide.date} ${virtualRide.departureTime}`, 'yyyy-MM-dd hh:mm a', new Date());
         if (isPast(departureDateTime)) {
             return undefined;
@@ -246,8 +251,8 @@ export const createBooking = async (
         if (!rideDoc.exists()) {
             // Ride doesn't exist, so create it from the template
             const [templateId, date] = bookingData.rideId.split('-');
-            const templateRef = doc(db, 'rideTemplates', templateId);
-            const templateSnap = await getDoc(templateRef);
+            const templateDocRef = doc(db, 'rideTemplates', templateId);
+            const templateSnap = await transaction.get(templateDocRef); // Use transaction.get
             if (!templateSnap.exists()) {
                 throw new Error("Ride template not found.");
             }
@@ -266,7 +271,6 @@ export const createBooking = async (
                 totalSeats: template.totalSeats,
                 seats: template.initialSeats,
             };
-            // The transaction will create this ride doc later.
         } else {
             ride = rideDoc.data() as Ride;
         }

@@ -3,12 +3,12 @@
 'use server';
 
 import { z } from 'zod';
-import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, createOrUpdateRideTemplateInDb, deleteRideTemplateFromDb } from './data';
+import { createBooking, updateRideSeats, getAllCollectionDocuments, deleteAllDocuments, getAllUsers, getPaymentDetails, setPaymentQrUrl, deleteUserFromFirestore, updateFooterSettings as updateFooterSettingsInDb, updateUserProfileInDb, createOrUpdateRideTemplateInDb, deleteRideTemplateFromDb, getRideById } from './data';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { storage, db, auth } from './firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { doc, updateDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, collection, runTransaction, getDoc } from 'firebase/firestore';
 import type { User, FooterSettings, Ride, RideTemplate } from './types';
 import { format } from 'date-fns';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateProfile } from 'firebase/auth';
@@ -153,18 +153,37 @@ export async function updateBookingStatus(
     newStatus: 'confirmed' | 'cancelled'
 ): Promise<{ success: boolean; message: string }> {
     try {
-        const bookingRef = doc(db, 'bookings', bookingId);
+        await runTransaction(db, async (transaction) => {
+            const bookingRef = doc(db, 'bookings', bookingId);
+            const rideRef = doc(db, 'rides', rideId);
 
-        if (newStatus === 'confirmed') {
-            await updateRideSeats(rideId, seats, 'booked');
-        } else if (newStatus === 'cancelled') {
-            await updateRideSeats(rideId, seats, 'available');
-        }
-
-        await updateDoc(bookingRef, { status: newStatus });
+            const rideDoc = await transaction.get(rideRef);
+            if (!rideDoc.exists()) {
+                // This might happen if the booking is for a ride that hasn't been created in the DB yet.
+                // e.g., the first action on a virtual ride. We need to create it.
+                const ride = await getRideById(rideId); // This will generate the virtual ride.
+                if (!ride) throw new Error(`Ride with ID ${rideId} could not be found or generated.`);
+                
+                const newSeats = ride.seats.map(seat => 
+                    seats.includes(seat.number) ? { ...seat, status: newStatus === 'confirmed' ? 'booked' : 'available' } : seat
+                );
+                transaction.set(rideRef, { ...ride, seats: newSeats });
+            } else {
+                // The ride document exists, update it.
+                const ride = rideDoc.data() as Ride;
+                const newSeats = ride.seats.map(seat => 
+                    seats.includes(seat.number) ? { ...seat, status: newStatus === 'confirmed' ? 'booked' : 'available' } : seat
+                );
+                 transaction.update(rideRef, { seats: newSeats });
+            }
+            
+            // Finally, update the booking status.
+            transaction.update(bookingRef, { status: newStatus });
+        });
 
         revalidatePath('/admin');
         revalidatePath('/my-bookings');
+        revalidatePath('/'); // Revalidate home in case it affects ride card availability
 
         return { success: true, message: `Booking has been ${newStatus}.` };
     } catch (error) {
