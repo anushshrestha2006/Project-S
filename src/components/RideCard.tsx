@@ -6,6 +6,7 @@ import { ArrowRight, Clock, Users, Bus, Armchair, Calendar, Hash, User } from 'l
 import type { Ride } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 
 interface RideCardProps {
@@ -15,6 +16,22 @@ interface RideCardProps {
 export function RideCard({ ride }: RideCardProps) {
   const availableSeats = ride.seats.filter(s => s.status === 'available').length;
   const rideDate = format(new Date(ride.date), "MMMM d, yyyy");
+
+  const getBadgeClass = () => {
+    if (availableSeats === 0) {
+      return "bg-destructive text-destructive-foreground";
+    }
+    if (availableSeats <= 3) {
+      return "bg-yellow-500 text-yellow-foreground";
+    }
+    return "bg-green-500 text-green-foreground";
+  };
+  
+  const getBadgeVariant = () => {
+    if (availableSeats === 0) return "destructive";
+    if (availableSeats <= 3) return "secondary";
+    return "default";
+  }
 
   return (
     <Card className="flex flex-col transition-all hover:shadow-lg hover:-translate-y-1">
@@ -29,7 +46,7 @@ export function RideCard({ ride }: RideCardProps) {
                     {rideDate}
                 </CardDescription>
             </div>
-             <Badge variant={availableSeats > 0 ? "secondary" : "destructive"} className="whitespace-nowrap bg-accent text-accent-foreground">
+             <Badge variant={getBadgeVariant()} className={cn("whitespace-nowrap", getBadgeClass())}>
                 {availableSeats > 0 ? `${availableSeats} seats left` : 'Full'}
             </Badge>
         </div>
